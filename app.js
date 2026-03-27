@@ -2,10 +2,16 @@
 
 // State Management
 let currentView = 'dashboard';
+// Progress initialization
 let userProgress = JSON.parse(localStorage.getItem('d_edu_v2_progress')) || {
-  skills: {}, // { skill_id: { level: 1, xp: 0 } }
-  lessons: {}, // { lesson_id: { nextReview: date, state: 'new'|'learning'|'review' } }
-  actions: [] // { lesson_id: date, result: '' }
+  lessons: {},
+  skills: {},
+  stats: {
+    totalXp: 0,
+    coins: 0,
+    masteredSkills: 0,
+    streak: 0
+  }
 };
 
 let currentLessonState = {
@@ -125,29 +131,82 @@ function renderLessonsList(skillId) {
     const skill = KNOWLEDGE_BASE.skills[skillId];
     const sub = KNOWLEDGE_BASE.subsystems[skill.subsystemId];
     const main = document.getElementById('main-content');
+    
     main.innerHTML = `
         <header style="margin-bottom: 3rem;" class="fade-in">
             <a href="#" onclick="renderSkills('${skill.subsystemId}')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
                 <ion-icon name="arrow-back-outline"></ion-icon> Назад к навыкам
             </a>
             <h1>${skill.title}</h1>
-            <p style="color: var(--text-secondary);">Микроуроки для изучения.</p>
+            <p style="color: var(--text-secondary);">Микроуроки для изучения и повторения.</p>
         </header>
         <div class="grid fade-in">
             ${skill.lessons.map(lessonId => {
                 const lesson = KNOWLEDGE_BASE.lessons[lessonId];
                 if (!lesson) return '';
-                const isLearned = userProgress.lessons[lessonId];
+                
+                const progress = userProgress.lessons[lessonId] || { masteryLevel: 0, nextReview: 0 };
+                const isLocked = progress.nextReview > Date.now();
+                const mastery = progress.masteryLevel;
+                
+                let lockMsg = "";
+                if (isLocked) {
+                  const hoursLeft = Math.ceil((progress.nextReview - Date.now()) / (1000 * 60 * 60));
+                  lockMsg = hoursLeft > 24 ? `${Math.ceil(hoursLeft/24)}д` : `${hoursLeft}ч`;
+                }
+
                 return `
-                    <div class="micro-lesson-card" onclick="startLesson('${lessonId}')">
+                    <div class="micro-lesson-card ${isLocked ? 'lesson-locked' : ''}" 
+                         onclick="${isLocked ? '' : `startLesson('${lessonId}')`}">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                            <span class="badge-srs ${isLearned ? 'badge-learned' : 'badge-new'}">${isLearned ? 'Пройдено' : 'Новое'}</span>
-                            ${isLearned ? '<ion-icon name="checkmark-circle" style="color: var(--secondary); font-size: 1.5rem;"></ion-icon>' : ''}
+                            <span class="badge-srs" style="background: var(--lvl-${mastery || 1});">Ур. ${mastery}/5</span>
+                            ${isLocked ? `
+                                <div class="lock-overlay"><ion-icon name="lock-closed"></ion-icon> ${lockMsg}</div>
+                            ` : mastery >= 5 ? `
+                                <ion-icon name="checkmark-done-circle" style="color: var(--lvl-5); font-size: 1.5rem;"></ion-icon>
+                            ` : ''}
                         </div>
                         <h3>${lesson.title}</h3>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width: ${mastery * 20}%; background: var(--lvl-${mastery || 1});"></div>
+                        </div>
                     </div>
                 `;
-            }).join('')}
+            }).join('') || '<p style="color: var(--text-secondary);">Уроки в разработке.</p>'}
+        </div>
+    `;
+}
+
+function renderProfile() {
+    const main = document.getElementById('main-content');
+    const totalLessons = Object.keys(KNOWLEDGE_BASE.lessons).length;
+    const completed = Object.values(userProgress.lessons).filter(l => l.masteryLevel >= 1).length;
+    const percent = totalLessons ? Math.round((completed / totalLessons) * 100) : 0;
+    
+    main.innerHTML = `
+        <header style="margin-bottom: 3rem;" class="fade-in">
+            <h1>Мой прогресс</h1>
+            <p style="color: var(--text-secondary);">Твой путь к финансовой свободе.</p>
+        </header>
+        
+        <div class="grid fade-in" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 3rem;">
+            <div class="profile-stat-card">
+                <h3 style="color: var(--primary); font-size: 2rem;">${completed}</h3>
+                <p style="font-size: 0.8rem; color: var(--text-secondary);">Пройдено уроков</p>
+            </div>
+            <div class="profile-stat-card">
+                <h3 style="color: var(--secondary); font-size: 2rem;">${percent}%</h3>
+                <p style="font-size: 0.8rem; color: var(--text-secondary);">Общий прогресс</p>
+            </div>
+            <div class="profile-stat-card">
+                <h3 style="color: var(--lvl-4); font-size: 2rem;">${userProgress.stats.masteredSkills || 0}</h3>
+                <p style="font-size: 0.8rem; color: var(--text-secondary);">Навыков освоено</p>
+            </div>
+        </div>
+        
+        <h3 style="margin-bottom: 1.5rem;">Активные навыки</h3>
+        <div class="grid fade-in">
+            ${renderSkillCards()}
         </div>
     `;
 }
@@ -280,38 +339,50 @@ function renderCheckScreen(check) {
 }
 
 function finishLesson() {
-    const lessonId = currentLessonState.lessonId;
+    const { lessonId } = currentLessonState;
     const lesson = KNOWLEDGE_BASE.lessons[lessonId];
-    
-    // Spaced Repetition Logic (1, 3, 7, 30)
-    const intervals = [1, 3, 7, 30];
-    const prevData = userProgress.lessons[lessonId];
-    const prevLevel = prevData?.level || 0;
-    const nextLevel = Math.min(prevLevel + 1, intervals.length);
-    const days = intervals[nextLevel - 1];
-
-    userProgress.lessons[lessonId] = {
-        nextReview: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
-        level: nextLevel,
-        state: 'learning'
-    };
-
-    // Update Skill Mastery (Basic logic for MVP)
-    if (!userProgress.skills[lesson.skillId]) {
-        userProgress.skills[lesson.skillId] = { level: 1, xp: 0 };
-    }
-    
-    // Simple level up: if all lessons in skill are level 1+, skill level = 2, etc.
     const skill = KNOWLEDGE_BASE.skills[lesson.skillId];
-    const skillLessons = skill.lessons.map(id => userProgress.lessons[id]);
-    const minLevel = Math.min(...skillLessons.filter(l => l).map(l => l.level), 0);
     
-    if (minLevel > 0) {
-        userProgress.skills[skill.id].level = Math.min(minLevel + 1, 5);
+    // Update progress
+    if (!userProgress.lessons[lessonId]) {
+        userProgress.lessons[lessonId] = {
+          masteryLevel: 0,
+          lastPassed: 0,
+          nextReview: 0
+        };
     }
+    
+    const lessonProgress = userProgress.lessons[lessonId];
+    lessonProgress.masteryLevel = Math.min(lessonProgress.masteryLevel + 1, 5);
+    lessonProgress.lastPassed = Date.now();
+    
+    // Calculate next interval based on user request: 3, 7, 30 days
+    const intervals = [0, 3, 7, 30, 0]; // Index 1: Level 1 -> 2 (3 days)
+    const currentIntervalDays = intervals[lessonProgress.masteryLevel] || 0;
+    
+    if (currentIntervalDays > 0) {
+      lessonProgress.nextReview = Date.now() + (currentIntervalDays * 24 * 60 * 60 * 1000);
+    } else {
+      lessonProgress.nextReview = 0; // Won't lock if level 4+ (mastered or last review)
+    }
+
+    // Update skill mastery based on average of lessons
+    const lessonsInSkill = skill.lessons.map(id => userProgress.lessons[id] || { masteryLevel: 0 });
+    const minLevel = Math.min(...lessonsInSkill.map(l => l.masteryLevel));
+    
+    if (!userProgress.skills[skill.id]) {
+        userProgress.skills[skill.id] = { level: 1, xp: 0 };
+    }
+    userProgress.skills[skill.id].level = minLevel;
+    if (minLevel >= 5) userProgress.stats.masteredSkills++;
 
     saveProgress();
-    alert("Урок завершен! Навык прокачан. 🔥");
+    
+    const nextMsg = lessonProgress.nextReview > 0 
+      ? `Следующее повторение через ${currentIntervalDays} дн.`
+      : "Урок полностью освоен! 🔥";
+      
+    alert(`Урок завершен! Уровень мастерства: ${lessonProgress.masteryLevel}/5. ${nextMsg}`);
     renderDashboard();
 }
 
