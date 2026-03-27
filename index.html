@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D-Education | Финансовая грамотность</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Ionicons for icons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+    <div class="container fade-in">
+        <nav>
+            <div class="logo">🧠 D-<span>SYSTEM</span></div>
+            <div class="nav-links">
+                <a href="#" class="btn btn-primary" onclick="renderDashboard()">
+                    <ion-icon name="home-outline"></ion-icon> Главная
+                </a>
+            </div>
+        </nav>
+
+        <!-- MAIN VIEW (DASHBOARD OR LESSON) -->
+        <main id="main-content">
+            <!-- Dynamic content injected here -->
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
