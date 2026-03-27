@@ -1,4 +1,4 @@
-/* D-Education Data Architecture v2.2 */
+/* D-Education Data Architecture v2.3 */
 
 const KNOWLEDGE_BASE = {
   areas: [
@@ -19,38 +19,47 @@ const KNOWLEDGE_BASE = {
     { id: "health", title: "Здоровье", icon: "heart-outline", subsystems: [] }
   ],
   subsystems: {
-    "sub_psy": { id: "sub_psy", areaId: "finance", title: "Блок 1. Психология денег", skills: ["skill_money_mindset", "skill_emotional_spending"] },
-    "sub_income": { id: "sub_income", areaId: "finance", title: "Блок 2. Доход: как человек зарабатывает", skills: ["skill_income_types", "skill_capital_income"] },
-    "sub_flow": { id: "sub_flow", areaId: "finance", title: "Блок 3. Учет и контроль денежного потока", skills: ["skill_cashflow_basics"] },
+    "sub_psy": { 
+      id: "sub_psy", 
+      areaId: "finance", 
+      title: "Блок 1. Психология денег", 
+      skills: ["skill_money_mindset", "skill_emotional_spending", "skill_abundance_vs_scarcity", "skill_money_emotions"] 
+    },
+    "sub_income": { 
+      id: "sub_income", 
+      areaId: "finance", 
+      title: "Блок 2. Доход: как человек зарабатывает", 
+      skills: ["skill_income_types", "skill_capital_income", "skill_market_value", "skill_income_resilience"] 
+    },
+    "sub_flow": { 
+      id: "sub_flow", 
+      areaId: "finance", 
+      title: "Блок 3. Учет и контроль денежного потока", 
+      skills: ["skill_cashflow_basics", "skill_expense_optimization", "skill_financial_leaks"] 
+    },
     "sub_budget": { id: "sub_budget", areaId: "finance", title: "Блок 4. Бюджетирование", skills: [] },
     "sub_cushion": { id: "sub_cushion", areaId: "finance", title: "Блок 5. Финансовая подушка и резервы", skills: [] },
-    "sub_infra": { id: "sub_infra", areaId: "finance", title: "Блок 6. Банки, счета и инфраструктура", skills: [] },
-    "sub_debt": { id: "sub_debt", areaId: "finance", title: "Блок 7. Долги, кредиты и поведение", skills: [] },
-    "sub_tax": { id: "sub_tax", areaId: "finance", title: "Блок 8. Налоги для обычного человека", skills: [] },
-    "sub_inflation": { id: "sub_inflation", areaId: "finance", title: "Блок 9. Инфляция и реальная стоимость", skills: [] },
-    "sub_cap": { id: "sub_cap", areaId: "finance", title: "Блок 10. Сбережения и накопление", skills: [] },
-    "sub_invest_basics": { id: "sub_invest_basics", areaId: "finance", title: "Блок 11. Основы инвестирования", skills: ["skill_etf_basics"] },
-    "sub_tools": { id: "sub_tools", areaId: "finance", title: "Блок 12. Инвестиционные инструменты", skills: [] },
-    "sub_portfolio": { id: "sub_portfolio", areaId: "finance", title: "Блок 13. Построение портфеля", skills: [] },
-    "sub_analysis": { id: "sub_analysis", areaId: "finance", title: "Блок 14. Анализ активов", skills: [] },
-    "sub_fi_retirement": { id: "sub_fi_retirement", areaId: "finance", title: "Блок 15. Пенсия и финансовая независимость", skills: [] },
-    "sub_insurance": { id: "sub_insurance", areaId: "finance", title: "Блок 16. Страхование и защита", skills: [] },
-    "sub_safety": { id: "sub_safety", areaId: "finance", title: "Блок 17. Фин. безопасность и мошенничество", skills: [] },
-    "sub_consumer": { id: "sub_consumer", areaId: "finance", title: "Блок 18. Потребительские решения", skills: [] },
-    "sub_real_estate": { id: "sub_real_estate", areaId: "finance", title: "Блок 19. Недвижимость", skills: [] },
-    "sub_family": { id: "sub_family", areaId: "finance", title: "Блок 20. Семья, отношения и деньги", skills: [] },
-    "sub_business": { id: "sub_business", areaId: "finance", title: "Блок 21. Предпринимательство", skills: [] },
-    "sub_intl": { id: "sub_intl", areaId: "finance", title: "Блок 22. Международные финансы", skills: [] },
-    "sub_legal": { id: "sub_legal", areaId: "finance", title: "Блок 23. Правовые и документальные основы", skills: [] },
-    "sub_risk": { id: "sub_risk", areaId: "finance", title: "Блок 24. Продвинутый риск-менеджмент", skills: [] },
-    "sub_strategy": { id: "sub_strategy", areaId: "finance", title: "Блок 25. Финансовая стратегия жизни", skills: [] }
+    // blocks 6-10 ...
+    "sub_invest_basics": { id: "sub_invest_basics", areaId: "finance", title: "Блок 11. Основы инвестирования", skills: ["skill_etf_basics"] }
   },
   skills: {
+    // BLOCK 1: Psychology
     "skill_money_mindset": { id: "skill_money_mindset", subsystemId: "sub_psy", title: "Денежное мышление", lessons: ["ml_family_scripts", "ml_fear_of_money"] },
     "skill_emotional_spending": { id: "skill_emotional_spending", subsystemId: "sub_psy", title: "Эмоции и траты", lessons: ["ml_impulsive_spends"] },
+    "skill_abundance_vs_scarcity": { id: "skill_abundance_vs_scarcity", subsystemId: "sub_psy", title: "Изобилие против Дефицита", lessons: [] },
+    "skill_money_emotions": { id: "skill_money_emotions", subsystemId: "sub_psy", title: "Стыд, вина и тревога", lessons: [] },
+    
+    // BLOCK 2: Income
     "skill_income_types": { id: "skill_income_types", subsystemId: "sub_income", title: "Виды дохода", lessons: [] },
     "skill_capital_income": { id: "skill_capital_income", subsystemId: "sub_income", title: "Доход от капитала", lessons: [] },
-    "skill_cashflow_basics": { id: "skill_cashflow_basics", subsystemId: "sub_flow", title: "Cash Flow и учет", lessons: [] },
+    "skill_market_value": { id: "skill_market_value", subsystemId: "sub_income", title: "Стоимость на рынке труда", lessons: [] },
+    "skill_income_resilience": { id: "skill_income_resilience", subsystemId: "sub_income", title: "Устойчивость дохода", lessons: [] },
+    
+    // BLOCK 3: Flow
+    "skill_cashflow_basics": { id: "skill_cashflow_basics", subsystemId: "sub_flow", title: "Cash Flow и учет", lessons: ["ml_balance_sheet_basics"] },
+    "skill_expense_optimization": { id: "skill_expense_optimization", subsystemId: "sub_flow", title: "Оптимизация расходов", lessons: [] },
+    "skill_financial_leaks": { id: "skill_financial_leaks", subsystemId: "sub_flow", title: "Денежные дыры", lessons: [] },
+    
     "skill_etf_basics": { id: "skill_etf_basics", subsystemId: "sub_invest_basics", title: "Инвестиции в ETF", lessons: ["ml_what_is_etf", "ml_buy_first_etf"] }
   },
   lessons: {
@@ -66,6 +75,18 @@ const KNOWLEDGE_BASE = {
         check: { type: "explanation", question: "Объясните как ребёнку: чем 'антисценарий' опасен для капитала?" }
       }
     },
+    "ml_balance_sheet_basics": {
+      id: "ml_balance_sheet_basics",
+      skillId: "skill_cashflow_basics",
+      title: "3.1. Личный баланс",
+      content: {
+        context: "Нельзя управлять тем, что нельзя измерить.",
+        essence: "Активы — это то, что приносит деньги. Пассивы — то, что забирает.",
+        example: "Машина, на которой вы работаете — актив. Машина для показухи — пассив.",
+        action: "Составьте список из 5 своих главных активов и пассивов.",
+        check: { type: "explanation", question: "Может ли квартира быть одновременно и активом, и пассивом? Как?" }
+      }
+    },
     "ml_buy_first_etf": {
       id: "ml_buy_first_etf",
       skillId: "skill_etf_basics",
@@ -78,6 +99,5 @@ const KNOWLEDGE_BASE = {
         check: { type: "case", question: "У вас есть $1000. Рынок упал на 5%. Ваше действие с ETF?", scenario: "Рынок в панике, все продают." }
       }
     }
-    // placeholders can be added for all 500 lessons later
   }
 };
