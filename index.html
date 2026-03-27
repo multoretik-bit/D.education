@@ -21,6 +21,10 @@
                 <a href="#" class="active" onclick="renderDashboard()">📝 Обучение</a>
                 <a href="#" onclick="renderAreas()">🧭 Каталог</a>
                 <a href="#" onclick="renderProfile()">👤 Профиль</a>
+                <div class="search-container">
+                    <input type="text" id="search-input" placeholder="Найти урок..." onkeyup="handleSearch(event)">
+                    <ion-icon name="search-outline"></ion-icon>
+                </div>
             </nav>
         </nav>
 
@@ -31,7 +35,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="data.js"></script>
+    <script src="data_v5.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

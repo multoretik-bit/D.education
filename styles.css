@@ -282,6 +282,36 @@ nav {
   color: var(--primary);
 }
 
+.search-container {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.05);
+  border-radius: 20px;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--border-color);
+  margin-left: 2rem;
+  transition: all 0.3s;
+}
+
+.search-container:focus-within {
+  border-color: var(--primary);
+  background: rgba(255,255,255,0.1);
+}
+
+.search-container input {
+  background: none;
+  border: none;
+  color: white;
+  outline: none;
+  width: 120px;
+  font-size: 0.85rem;
+}
+
+.search-container ion-icon {
+  color: var(--text-secondary);
+}
+
+
 /* Layouts */
 .grid {
   display: grid;

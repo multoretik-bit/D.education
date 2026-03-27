@@ -186,7 +186,7 @@ function renderProfile() {
     main.innerHTML = `
         <header style="margin-bottom: 3rem;" class="fade-in">
             <h1>Мой прогресс</h1>
-            <p style="color: var(--text-secondary);">Твой путь к финансовой свободе.</p>
+            <p style="color: var(--text-secondary);">Твой путь к финансовой свободе. (${completed} из ${totalLessons} уроков)</p>
         </header>
         
         <div class="grid fade-in" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 3rem;">
@@ -210,6 +210,52 @@ function renderProfile() {
         </div>
     `;
 }
+
+// --- SEARCH ENGINE ---
+
+function handleSearch(event) {
+  const query = event.target.value.toLowerCase().trim();
+  if (query.length < 2) {
+    if (query.length === 0 && currentView === 'search') renderDashboard();
+    return;
+  }
+  renderSearchResults(query);
+}
+
+function renderSearchResults(query) {
+  currentView = 'search';
+  const main = document.getElementById('main-content');
+  const results = Object.values(KNOWLEDGE_BASE.lessons).filter(l => 
+    l.title.toLowerCase().includes(query) || 
+    l.content.essence.toLowerCase().includes(query)
+  ).slice(0, 20); // Limit to 20 results for performance
+
+  main.innerHTML = `
+    <header style="margin-bottom: 3rem;" class="fade-in">
+        <h1>Результаты поиска</h1>
+        <p style="color: var(--text-secondary);">Найдено ${results.length} уроков по запросу "${query}"</p>
+    </header>
+    <div class="grid fade-in">
+        ${results.map(lesson => {
+            const progress = userProgress.lessons[lesson.id] || { masteryLevel: 0, nextReview: 0 };
+            const isLocked = progress.nextReview > Date.now();
+            return `
+                <div class="micro-lesson-card ${isLocked ? 'lesson-locked' : ''}" 
+                     onclick="${isLocked ? '' : `startLesson('${lesson.id}')`}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <span class="badge-srs" style="background: var(--lvl-${progress.masteryLevel || 1});">
+                            Ур. ${progress.masteryLevel}/5
+                        </span>
+                        ${isLocked ? '<ion-icon name="lock-closed"></ion-icon>' : ''}
+                    </div>
+                    <h3>${lesson.title}</h3>
+                </div>
+            `;
+        }).join('') || '<p style="color: var(--text-secondary);">Ничего не найдено.</p>'}
+    </div>
+  `;
+}
+
 
 function renderTodayLessons() {
   const lessons = Object.values(KNOWLEDGE_BASE.lessons);
