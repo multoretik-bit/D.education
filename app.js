@@ -10,7 +10,7 @@ let userProgress = JSON.parse(localStorage.getItem('d_edu_v2_progress')) || {
 
 let currentLessonState = {
   lessonId: null,
-  step: 0, // 0: Context, 1: Essence, 2: Example, 3: Action, 4: Check
+  step: 0, 
   cards: []
 };
 
@@ -19,16 +19,17 @@ function saveProgress() {
   renderDashboard();
 }
 
-// Rendering Dashboard
+// --- NAVIGATION & RENDERING ---
+
 function renderDashboard() {
   const main = document.getElementById('main-content');
   main.innerHTML = `
-    <header style="margin-bottom: 3rem;">
+    <header style="margin-bottom: 3rem;" class="fade-in">
         <h1>Твой путь к результату</h1>
         <p style="color: var(--text-secondary);">Фокус на навыках и реальных изменениях.</p>
     </header>
     
-    <div class="dashboard-grid">
+    <div class="dashboard-grid fade-in">
         <section class="today-section">
             <h3 style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--primary);">Сегодняшние задачи</h3>
             ${renderTodayLessons()}
@@ -40,6 +41,115 @@ function renderDashboard() {
         </section>
     </div>
   `;
+}
+
+function renderAreas() {
+    const main = document.getElementById('main-content');
+    main.innerHTML = `
+        <header style="margin-bottom: 3rem;" class="fade-in">
+            <h1>Каталог знаний</h1>
+            <p style="color: var(--text-secondary);">Выберите область для изучения.</p>
+        </header>
+        <div class="grid fade-in">
+            ${KNOWLEDGE_BASE.areas.map(area => `
+                <div class="area-card" onclick="renderSubsystems('${area.id}')">
+                    <ion-icon name="${area.icon}" style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem;"></ion-icon>
+                    <h2>${area.title}</h2>
+                    <p style="color: var(--text-secondary); margin-top: 0.5rem;">${area.subsystems.length} разделов</p>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function renderSubsystems(areaId) {
+    const area = KNOWLEDGE_BASE.areas.find(a => a.id === areaId);
+    const main = document.getElementById('main-content');
+    main.innerHTML = `
+        <header style="margin-bottom: 3rem;" class="fade-in">
+            <a href="#" onclick="renderAreas()" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <ion-icon name="arrow-back-outline"></ion-icon> Назад к областям
+            </a>
+            <h1>${area.title}</h1>
+            <p style="color: var(--text-secondary);">Выберите блок обучения.</p>
+        </header>
+        <div class="grid fade-in" style="grid-template-columns: 1fr;">
+            ${area.subsystems.map(subId => {
+                const sub = KNOWLEDGE_BASE.subsystems[subId];
+                if (!sub) return '';
+                return `
+                    <div class="subsystem-card" onclick="renderSkills('${sub.id}')">
+                        <div>
+                            <h3 style="font-size: 1.25rem;">${sub.title}</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">${sub.skills.length} навыков</p>
+                        </div>
+                        <ion-icon name="chevron-forward-outline" style="font-size: 1.5rem; color: var(--text-secondary);"></ion-icon>
+                    </div>
+                `;
+            }).join('') || '<p style="color: var(--text-secondary);">Разделы скоро появятся.</p>'}
+        </div>
+    `;
+}
+
+function renderSkills(subsystemId) {
+    const sub = KNOWLEDGE_BASE.subsystems[subsystemId];
+    const main = document.getElementById('main-content');
+    main.innerHTML = `
+        <header style="margin-bottom: 3rem;" class="fade-in">
+            <a href="#" onclick="renderSubsystems('${sub.areaId}')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <ion-icon name="arrow-back-outline"></ion-icon> Назад к блокам
+            </a>
+            <h1>${sub.title}</h1>
+            <p style="color: var(--text-secondary);">Выберите навык для прокачки.</p>
+        </header>
+        <div class="grid fade-in">
+            ${sub.skills.map(skillId => {
+                const skill = KNOWLEDGE_BASE.skills[skillId];
+                const progress = userProgress.skills[skillId] || { level: 1 };
+                return `
+                    <div class="micro-lesson-card" onclick="renderLessonsList('${skillId}')">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                            <span class="badge-srs" style="background: var(--lvl-${progress.level}); color: white;">Уровень ${progress.level}</span>
+                            <ion-icon name="ribbon-outline" style="color: var(--lvl-${progress.level}); font-size: 1.2rem;"></ion-icon>
+                        </div>
+                        <h3>${skill.title}</h3>
+                        <p style="color: var(--text-secondary); margin-top: 0.5rem; font-size: 0.9rem;">${skill.lessons.length} уроков</p>
+                    </div>
+                `;
+            }).join('') || '<p style="color: var(--text-secondary);">Навыки скоро появятся.</p>'}
+        </div>
+    `;
+}
+
+function renderLessonsList(skillId) {
+    const skill = KNOWLEDGE_BASE.skills[skillId];
+    const sub = KNOWLEDGE_BASE.subsystems[skill.subsystemId];
+    const main = document.getElementById('main-content');
+    main.innerHTML = `
+        <header style="margin-bottom: 3rem;" class="fade-in">
+            <a href="#" onclick="renderSkills('${skill.subsystemId}')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <ion-icon name="arrow-back-outline"></ion-icon> Назад к навыкам
+            </a>
+            <h1>${skill.title}</h1>
+            <p style="color: var(--text-secondary);">Микроуроки для изучения.</p>
+        </header>
+        <div class="grid fade-in">
+            ${skill.lessons.map(lessonId => {
+                const lesson = KNOWLEDGE_BASE.lessons[lessonId];
+                if (!lesson) return '';
+                const isLearned = userProgress.lessons[lessonId];
+                return `
+                    <div class="micro-lesson-card" onclick="startLesson('${lessonId}')">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <span class="badge-srs ${isLearned ? 'badge-learned' : 'badge-new'}">${isLearned ? 'Пройдено' : 'Новое'}</span>
+                            ${isLearned ? '<ion-icon name="checkmark-circle" style="color: var(--secondary); font-size: 1.5rem;"></ion-icon>' : ''}
+                        </div>
+                        <h3>${lesson.title}</h3>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
 }
 
 function renderTodayLessons() {
