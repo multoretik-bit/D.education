@@ -9,7 +9,7 @@ git add .
 
 echo.
 echo [2/3] Committing changes...
-git commit -m "Upload all 26 blocks and 530+ lessons"
+git commit -m "Upload all 23 blocks and 220+ lessons of the Meta-Skills course"
 
 echo.
 echo [3/3] Pushing to GitHub...
