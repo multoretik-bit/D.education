@@ -11,7 +11,8 @@ let currentUser = localStorage.getItem('d_edu_user');
 let userProgress = {
   lessons: {},
   skills: {},
-  stats: { totalXp: 0, coins: 0, masteredSkills: 0, streak: 0 }
+  stats: { totalXp: 0, coins: 0, masteredSkills: 0, streak: 0 },
+  schedule: {}
 };
 
 let currentLessonState = {
@@ -29,10 +30,14 @@ async function loadProgressFromCloud() {
         const { data, error } = await supabaseClient.from('user_progress').select('data').eq('user_id', currentUser).single();
         if (data && data.data) {
             userProgress = data.data;
+            if(!userProgress.schedule) userProgress.schedule = {};
         } else {
             // Migrate offline to online if possible
             const local = JSON.parse(localStorage.getItem('d_edu_v2_progress'));
-            if (local) userProgress = local;
+            if (local) {
+                userProgress = local;
+                if(!userProgress.schedule) userProgress.schedule = {};
+            }
             await saveProgressToCloud(); 
         }
     } catch(e) {
@@ -62,8 +67,8 @@ function renderLoginAuth() {
         <div style="text-align: center; margin-top: 5rem;" class="fade-in">
             <ion-icon name="cloud-done-outline" style="font-size: 5rem; color: var(--primary); margin-bottom: 2rem;"></ion-icon>
             <h2>Добро пожаловать в D-SYSTEM</h2>
-            <p style="color: var(--text-secondary); margin: 1rem 0 2rem 0;">Мы включили сохранение в Облако Supabase. Введите ваш Никнейм, чтобы ваши 530+ уроков никогда не удалились.</p>
-            <input type="text" id="username-input" class="check-input" placeholder="Введите ваш логин (Например: investor2026)" style="max-width: 300px; margin: 0 auto; display: block;">
+            <p style="color: var(--text-secondary); margin: 1rem 0 2rem 0;">Мы включили сохранение в Облако Supabase. Введите вашу Почту (Email), чтобы синхронизировать прогресс между компьютером и телефоном.</p>
+            <input type="email" id="username-input" class="check-input" placeholder="Введите ваш Email (Например: john@gmail.com)" style="max-width: 300px; margin: 0 auto; display: block;">
             <button class="btn btn-primary" style="margin-top: 1rem; width: 100%; max-width: 300px;" onclick="handleLogin()">Войти в Систему</button>
         </div>
     `;
@@ -90,26 +95,149 @@ window.onload = async () => {
 
 // --- NAVIGATION & RENDERING ---
 
+function getMonthName(m) {
+    return ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"][m];
+}
+
 function renderDashboard() {
   const main = document.getElementById('main-content');
-  main.innerHTML = `
-    <header style="margin-bottom: 3rem;" class="fade-in">
-        <h1>Твой путь к результату</h1>
-        <p style="color: var(--text-secondary);">Фокус на навыках и реальных изменениях.</p>
-    </header>
-    
-    <div class="dashboard-grid fade-in">
-        <section class="today-section">
-            <h3 style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--primary);">Сегодняшние задачи</h3>
-            ${renderTodayLessons()}
-        </section>
-        
-        <section class="skills-section">
-            <h3 style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--primary);">Карта навыков</h3>
-            ${renderSkillCards()}
-        </section>
-    </div>
+  
+  // Calculate this week's dates (Monday to Sunday)
+  const today = new Date();
+  const currentDay = today.getDay(); // 0 is Sunday, 1 is Monday...
+  const distance = currentDay === 0 ? 6 : currentDay - 1; // days since Monday
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - distance);
+
+  const daysOfWeek = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
+  let calendarHtml = '<div class="calendar-grid fade-in">';
+
+  for(let i = 0; i < 7; i++) {
+     const dateIter = new Date(monday);
+     dateIter.setDate(monday.getDate() + i);
+     // Need stable local YYYY-MM-DD format regardless of timezone
+     const y = dateIter.getFullYear();
+     const m = String(dateIter.getMonth() + 1).padStart(2, '0');
+     const d = String(dateIter.getDate()).padStart(2, '0');
+     const dateStr = `${y}-${m}-${d}`; 
+
+     const ty = today.getFullYear();
+     const tm = String(today.getMonth() + 1).padStart(2, '0');
+     const td = String(today.getDate()).padStart(2, '0');
+     const todayStr = `${ty}-${tm}-${td}`;
+     const isToday = dateStr === todayStr;
+     
+     calendarHtml += `
+       <div class="calendar-day ${isToday ? 'current-day' : ''}">
+           <div class="day-header">
+               <span class="day-name">${daysOfWeek[i]}</span>
+               <span class="day-date">${dateIter.getDate()} ${getMonthName(dateIter.getMonth())}</span>
+           </div>
+           <div class="day-tasks">
+               ${renderScheduledTasks(dateStr)}
+           </div>
+           <button class="add-task-btn" onclick="openScheduleModal('${dateStr}')"><ion-icon name="add-outline"></ion-icon> План</button>
+       </div>
+     `;
+  }
+  calendarHtml += `</div>
+     <!-- Modal Template -->
+     <div id="schedule-modal" class="modal-overlay hidden">
+         <div class="modal-content">
+             <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1rem;">
+                <h3 style="color:var(--primary);"><ion-icon name="calendar-outline"></ion-icon> Добавить в план</h3>
+                <ion-icon name="close" onclick="closeScheduleModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
+             </header>
+             <p style="color:var(--text-secondary); margin-bottom: 1rem; font-size:0.9rem;">Найдите нужный урок из полного курса (534 уроков):</p>
+             <input type="text" id="modal-search" class="check-input" style="margin-top:0;" placeholder="Поиск (например: крипта, кредит, риск...)" onkeyup="handleModalSearch(this.value)">
+             <input type="hidden" id="modal-active-date" value="">
+             <div id="modal-search-results" style="margin-top: 1rem; max-height: 250px; overflow-y:auto;">
+             </div>
+         </div>
+     </div>
   `;
+
+  main.innerHTML = `
+    <header style="margin-bottom: 2rem;" class="fade-in">
+        <h1>Ваша учебная неделя</h1>
+        <p style="color: var(--text-secondary);">Распределяйте уроки осознанно. Выстраивайте дисциплину.</p>
+    </header>
+    ${calendarHtml}
+  `;
+}
+
+function renderScheduledTasks(dateStr) {
+    const list = userProgress.schedule[dateStr] || [];
+    if(list.length === 0) return '';
+    return list.map(id => {
+       const lesson = KNOWLEDGE_BASE.lessons[id];
+       if(!lesson) return '';
+       
+       const p = userProgress.lessons[id];
+       let isPassedOnThisDate = false;
+       if(p && p.lastPassed) {
+           const passedDateStr = new Date(p.lastPassed).toISOString().split('T')[0];
+           if(passedDateStr >= dateStr) isPassedOnThisDate = true; 
+       }
+       
+       return `
+         <div class="task-pill ${isPassedOnThisDate ? 'task-done' : 'task-pending'}" onclick="startLesson('${id}')">
+             <span class="task-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${lesson.title}</span>
+             <span class="task-icon">${isPassedOnThisDate ? '✅' : '⏳'}</span>
+         </div>
+       `;
+    }).join('');
+}
+
+// Modal functions
+function openScheduleModal(dateStr) {
+    document.getElementById('schedule-modal').classList.remove('hidden');
+    document.getElementById('modal-active-date').value = dateStr;
+    document.getElementById('modal-search').value = '';
+    document.getElementById('modal-search-results').innerHTML = '';
+    document.getElementById('modal-search').focus();
+}
+
+function closeScheduleModal() {
+    document.getElementById('schedule-modal').classList.add('hidden');
+}
+
+function handleModalSearch(query) {
+    query = query.toLowerCase().trim();
+    const resultsContainer = document.getElementById('modal-search-results');
+    if (query.length < 2) {
+        resultsContainer.innerHTML = '';
+        return;
+    }
+    
+    const results = Object.values(KNOWLEDGE_BASE.lessons).filter(l => 
+        l.title.toLowerCase().includes(query) || 
+        Math.random() > 0.99 // Fallback
+    ).slice(0, 10);
+    
+    if(results.length === 0) {
+        resultsContainer.innerHTML = '<p style="color:var(--text-secondary);">Ничего не найдено</p>';
+        return;
+    }
+    
+    resultsContainer.innerHTML = results.map(l => `
+        <div class="search-result-item" onclick="addLessonToSchedule('${l.id}')">
+            <span>${l.title}</span>
+            <ion-icon name="add-circle" style="color:var(--primary); font-size:1.2rem;"></ion-icon>
+        </div>
+    `).join('');
+}
+
+async function addLessonToSchedule(lessonId) {
+    const dateStr = document.getElementById('modal-active-date').value;
+    if(!userProgress.schedule[dateStr]) userProgress.schedule[dateStr] = [];
+    
+    if(!userProgress.schedule[dateStr].includes(lessonId)) {
+        userProgress.schedule[dateStr].push(lessonId);
+        await saveProgressToCloud();
+        renderDashboard();
+    }
+    closeScheduleModal();
 }
 
 function renderAreas() {
@@ -523,7 +651,20 @@ async function finishLesson() {
     const currentIntervalDays = intervals[lessonProgress.masteryLevel] || 0;
     
     if (currentIntervalDays > 0) {
-      lessonProgress.nextReview = Date.now() + (currentIntervalDays * 24 * 60 * 60 * 1000);
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + currentIntervalDays);
+      lessonProgress.nextReview = nextDate.getTime();
+      
+      // Auto-schedule it in the calendar for the future date
+      const y = nextDate.getFullYear();
+      const m = String(nextDate.getMonth() + 1).padStart(2, '0');
+      const d = String(nextDate.getDate()).padStart(2, '0');
+      const reviewDateStr = `${y}-${m}-${d}`;
+      
+      if(!userProgress.schedule[reviewDateStr]) userProgress.schedule[reviewDateStr] = [];
+      if(!userProgress.schedule[reviewDateStr].includes(lessonId)) {
+          userProgress.schedule[reviewDateStr].push(lessonId);
+      }
     } else {
       lessonProgress.nextReview = 0; // Won't lock if level 4+ (mastered or last review)
     }
@@ -543,10 +684,10 @@ async function finishLesson() {
     renderDashboard(); // Render earlier so UI looks instantly loaded
     
     const nextMsg = lessonProgress.nextReview > 0 
-      ? `Следующее повторение через ${currentIntervalDays} дн.`
+      ? `Урок закинут в расписание через ${currentIntervalDays} дн. на повторение.`
       : "Урок полностью освоен! 🔥";
       
     setTimeout(() => {
-        alert(`Урок завершен! Прогресс: ${lessonProgress.masteryLevel} из 4. Данные сохранены в Облаке. ${nextMsg}`);
+        alert(`Урок завершен! Успех: ${lessonProgress.masteryLevel} из 4.\n\n${nextMsg}`);
     }, 100);
 }
