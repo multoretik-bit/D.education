@@ -246,41 +246,42 @@ function switchModalTab(tab) {
 function renderModalBrowserTree() {
     const container = document.getElementById('modal-tab-browse');
     let html = '';
-    const area = KNOWLEDGE_BASE.areas[0]; // Курс Финансов
     
-    html += `<div style="font-weight: bold; font-size: 1.1rem; color: white; margin-bottom: 15px; display:flex; align-items:center; gap:8px;"><ion-icon name="school" style="color:var(--primary);"></ion-icon> ${area.title}</div>`;
-    
-    area.subsystems.forEach(subId => {
-        const sub = KNOWLEDGE_BASE.subsystems[subId];
-        if(!sub) return;
+    KNOWLEDGE_BASE.areas.forEach((area, aIndex) => {
+        html += `<div style="font-weight: bold; font-size: 1.1rem; color: white; margin-top: ${aIndex > 0 ? '20px' : '0'}; margin-bottom: 15px; display:flex; align-items:center; gap:8px;"><ion-icon name="${area.icon}" style="color:var(--primary);"></ion-icon> ${area.title}</div>`;
         
-        html += `
-        <div class="tree-node fade-in" style="margin-bottom: 6px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-            <div onclick="toggleTreeNode('node-${subId}')" style="cursor: pointer; padding: 12px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;">
-                <span style="font-weight: 500; font-size: 0.95rem;">${sub.title}</span>
-                <ion-icon name="chevron-down-outline" id="icon-node-${subId}" style="transition:0.3s; color: var(--text-secondary);"></ion-icon>
-            </div>
-            <div id="node-${subId}" class="tree-children hidden" style="padding: 0 10px 10px 10px;">
-        `;
-        
-        sub.skills.forEach(skillId => {
-            const skill = KNOWLEDGE_BASE.skills[skillId];
-            if(!skill) return;
-            skill.lessons.forEach(lId => {
-                const lesson = KNOWLEDGE_BASE.lessons[lId];
-                if(!lesson) return;
-                html += `
-                <div class="search-result-item" style="padding: 8px 10px; margin-bottom: 4px; font-size: 0.85rem; border-radius: 6px; background: rgba(0,0,0,0.2);">
-                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width: 80%;">${lesson.title}</span>
-                    <button class="btn" title="Добавить на этот день" onclick="addLessonToSchedule('${lId}')" style="padding: 4px 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); display:flex; align-items:center; gap:4px; font-size:0.8rem; border-radius: 4px;">
-                        <ion-icon name="add"></ion-icon> План
-                    </button>
+        area.subsystems.forEach(subId => {
+            const sub = KNOWLEDGE_BASE.subsystems[subId];
+            if(!sub) return;
+            
+            html += `
+            <div class="tree-node fade-in" style="margin-bottom: 6px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                <div onclick="toggleTreeNode('node-${subId}')" style="cursor: pointer; padding: 12px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;">
+                    <span style="font-weight: 500; font-size: 0.95rem;">${sub.title}</span>
+                    <ion-icon name="chevron-down-outline" id="icon-node-${subId}" style="transition:0.3s; color: var(--text-secondary);"></ion-icon>
                 </div>
-                `;
+                <div id="node-${subId}" class="tree-children hidden" style="padding: 0 10px 10px 10px;">
+            `;
+            
+            sub.skills.forEach(skillId => {
+                const skill = KNOWLEDGE_BASE.skills[skillId];
+                if(!skill) return;
+                skill.lessons.forEach(lId => {
+                    const lesson = KNOWLEDGE_BASE.lessons[lId];
+                    if(!lesson) return;
+                    html += `
+                    <div class="search-result-item" style="padding: 8px 10px; margin-bottom: 4px; font-size: 0.85rem; border-radius: 6px; background: rgba(0,0,0,0.2);">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width: 80%;">${lesson.title}</span>
+                        <button class="btn" title="Добавить на этот день" onclick="addLessonToSchedule('${lId}')" style="padding: 4px 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); display:flex; align-items:center; gap:4px; font-size:0.8rem; border-radius: 4px;">
+                            <ion-icon name="add"></ion-icon> План
+                        </button>
+                    </div>
+                    `;
+                });
             });
+            
+            html += `</div></div>`;
         });
-        
-        html += `</div></div>`;
     });
     
     container.innerHTML = html;
