@@ -1,17 +1,17 @@
 /* D-Education Platform Logic */
 
+// --- SUPABASE CONFIG ---
+const supabaseUrl = 'https://jjjkypymutcvrlngyhtt.supabase.co';
+const supabaseKey = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN'; 
+const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+
 // State Management
 let currentView = 'dashboard';
-// Progress initialization
-let userProgress = JSON.parse(localStorage.getItem('d_edu_v2_progress')) || {
+let currentUser = localStorage.getItem('d_edu_user');
+let userProgress = {
   lessons: {},
   skills: {},
-  stats: {
-    totalXp: 0,
-    coins: 0,
-    masteredSkills: 0,
-    streak: 0
-  }
+  stats: { totalXp: 0, coins: 0, masteredSkills: 0, streak: 0 }
 };
 
 let currentLessonState = {
@@ -20,10 +20,73 @@ let currentLessonState = {
   cards: []
 };
 
-function saveProgress() {
-  localStorage.setItem('d_edu_v2_progress', JSON.stringify(userProgress));
-  renderDashboard();
+// --- CLOUD SYNC ---
+async function loadProgressFromCloud() {
+    const main = document.getElementById('main-content');
+    main.innerHTML = `<p style="text-align:center; margin-top: 5rem; color: var(--text-secondary);">Синхронизация с облаком...</p>`;
+    
+    try {
+        const { data, error } = await supabaseClient.from('user_progress').select('data').eq('user_id', currentUser).single();
+        if (data && data.data) {
+            userProgress = data.data;
+        } else {
+            // Migrate offline to online if possible
+            const local = JSON.parse(localStorage.getItem('d_edu_v2_progress'));
+            if (local) userProgress = local;
+            await saveProgressToCloud(); 
+        }
+    } catch(e) {
+        console.warn("Could not fetch progress online, relying on local", e);
+        const local = JSON.parse(localStorage.getItem('d_edu_v2_progress'));
+        if (local) userProgress = local;
+    }
 }
+
+async function saveProgressToCloud() {
+  localStorage.setItem('d_edu_v2_progress', JSON.stringify(userProgress));
+  if (!currentUser) return;
+  
+  try {
+      await supabaseClient.from('user_progress').upsert({ 
+          user_id: currentUser, 
+          data: userProgress
+      });
+  } catch(e) {
+      console.error("Cloud save failed", e);
+  }
+}
+
+function renderLoginAuth() {
+    const main = document.getElementById('main-content');
+    main.innerHTML = `
+        <div style="text-align: center; margin-top: 5rem;" class="fade-in">
+            <ion-icon name="cloud-done-outline" style="font-size: 5rem; color: var(--primary); margin-bottom: 2rem;"></ion-icon>
+            <h2>Добро пожаловать в D-SYSTEM</h2>
+            <p style="color: var(--text-secondary); margin: 1rem 0 2rem 0;">Мы включили сохранение в Облако Supabase. Введите ваш Никнейм, чтобы ваши 530+ уроков никогда не удалились.</p>
+            <input type="text" id="username-input" class="check-input" placeholder="Введите ваш логин (Например: investor2026)" style="max-width: 300px; margin: 0 auto; display: block;">
+            <button class="btn btn-primary" style="margin-top: 1rem; width: 100%; max-width: 300px;" onclick="handleLogin()">Войти в Систему</button>
+        </div>
+    `;
+}
+
+async function handleLogin() {
+    const name = document.getElementById('username-input').value.trim();
+    if (name.length < 3) return alert('Логин должен быть больше 3 символов');
+    currentUser = name;
+    localStorage.setItem('d_edu_user', currentUser);
+    await loadProgressFromCloud();
+    renderDashboard();
+}
+
+// Initial Render OVERRIDE
+window.onload = async () => {
+    if (!currentUser) {
+        renderLoginAuth();
+    } else {
+        await loadProgressFromCloud();
+        renderDashboard();
+    }
+};
 
 // --- NAVIGATION & RENDERING ---
 
@@ -178,36 +241,90 @@ function renderLessonsList(skillId) {
 
 function renderProfile() {
     const main = document.getElementById('main-content');
-    const totalLessons = Object.keys(KNOWLEDGE_BASE.lessons).length;
-    const completed = Object.values(userProgress.lessons).filter(l => l.masteryLevel >= 1).length;
-    const percent = totalLessons ? Math.round((completed / totalLessons) * 100) : 0;
     
+    // Stats
+    const totalLessons = Object.keys(KNOWLEDGE_BASE.lessons).length;
+    const passedLessonsEntries = Object.entries(userProgress.lessons).filter(([_, data]) => data.masteryLevel >= 1);
+    const completedCount = passedLessonsEntries.length;
+    const percent = totalLessons ? Math.round((completedCount / totalLessons) * 100) : 0;
+    
+    // Build "Hot Bars" rendering for passed lessons
+    let completedLessonsHtml = '';
+    
+    if (completedCount === 0) {
+        completedLessonsHtml = `<p style="color: var(--text-secondary);">Вы пока не прошли ни одного урока. Самое время начать!</p>`;
+    } else {
+        completedLessonsHtml = `<div class="grid" style="grid-template-columns: 1fr; gap: 1rem;">`;
+        passedLessonsEntries.sort((a,b) => b[1].lastPassed - a[1].lastPassed).forEach(([lId, data]) => {
+            const lessonObj = KNOWLEDGE_BASE.lessons[lId];
+            if(!lessonObj) return;
+            const lvl = data.masteryLevel;
+            
+            completedLessonsHtml += `
+                <div style="background: var(--bg-card); padding: 1rem; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <h4 style="font-size: 0.95rem; margin-right: 1rem;">${lessonObj.title}</h4>
+                        <span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 10px; color: var(--text-secondary); white-space: nowrap;">
+                            ${lvl === 4 ? 'Освоено' : 'В повторе'}
+                        </span>
+                    </div>
+                    <!-- Hot bar 4 segments -->
+                    <div style="display: flex; gap: 4px; height: 6px; width: 100%; margin-top: 4px;">
+                        <div style="flex: 1; border-radius: 3px; background: ${lvl >= 1 ? 'var(--lvl-1)' : '#333'};"></div>
+                        <div style="flex: 1; border-radius: 3px; background: ${lvl >= 2 ? 'var(--lvl-2)' : '#333'};"></div>
+                        <div style="flex: 1; border-radius: 3px; background: ${lvl >= 3 ? 'var(--lvl-3)' : '#333'};"></div>
+                        <div style="flex: 1; border-radius: 3px; background: ${lvl >= 4 ? 'var(--lvl-4)' : '#333'};"></div>
+                    </div>
+                </div>
+            `;
+        });
+        completedLessonsHtml += `</div>`;
+    }
+
     main.innerHTML = `
-        <header style="margin-bottom: 3rem;" class="fade-in">
-            <h1>Мой прогресс</h1>
-            <p style="color: var(--text-secondary);">Твой путь к финансовой свободе. (${completed} из ${totalLessons} уроков)</p>
+        <header style="margin-bottom: 2rem;" class="fade-in">
+            <h1>Профиль: <span style="color:var(--primary)">${currentUser}</span></h1>
+            <button class="btn" style="padding: 0.4rem 1rem; margin-top: 1rem; font-size: 0.8rem;" onclick="logout()">Сменить пользователя</button>
         </header>
+
+        <section class="fade-in" style="background: var(--bg-card); border-radius: var(--radius); padding: 2rem; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 3rem;">
+            <h2 style="color: var(--primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <ion-icon name="podium"></ion-icon> Курс «Финансы (26 Глав)»
+            </h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Полная образовательная программа.</p>
+            
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span style="font-weight: 600;">Прогресс: ${completedCount} из ${totalLessons} уроков</span>
+                <span style="color: var(--primary); font-weight: bold;">${percent}%</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: hidden; margin-bottom: 2rem;">
+                <div style="width: ${percent}%; height: 100%; background: linear-gradient(90deg, var(--lvl-1), var(--lvl-4)); border-radius: 4px;"></div>
+            </div>
+
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+                <div class="profile-stat-card">
+                    <h3 style="color: var(--lvl-4); font-size: 2rem;">${userProgress.stats.masteredSkills || 0}</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary);">Навыков освоено</p>
+                </div>
+            </div>
+        </section>
         
-        <div class="grid fade-in" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 3rem;">
-            <div class="profile-stat-card">
-                <h3 style="color: var(--primary); font-size: 2rem;">${completed}</h3>
-                <p style="font-size: 0.8rem; color: var(--text-secondary);">Пройдено уроков</p>
-            </div>
-            <div class="profile-stat-card">
-                <h3 style="color: var(--secondary); font-size: 2rem;">${percent}%</h3>
-                <p style="font-size: 0.8rem; color: var(--text-secondary);">Общий прогресс</p>
-            </div>
-            <div class="profile-stat-card">
-                <h3 style="color: var(--lvl-4); font-size: 2rem;">${userProgress.stats.masteredSkills || 0}</h3>
-                <p style="font-size: 0.8rem; color: var(--text-secondary);">Навыков освоено</p>
-            </div>
-        </div>
-        
-        <h3 style="margin-bottom: 1.5rem;">Активные навыки</h3>
-        <div class="grid fade-in">
-            ${renderSkillCards()}
+        <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <ion-icon name="flame" style="color: var(--lvl-2);"></ion-icon> Дневник повторений
+        </h3>
+        <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+            Каждый пройденный урок нужно повторить еще 3 раза до полного зеленого "Освоения".
+        </p>
+        <div class="fade-in">
+            ${completedLessonsHtml}
         </div>
     `;
+}
+
+function logout() {
+    currentUser = null;
+    localStorage.removeItem('d_edu_user');
+    window.location.reload();
 }
 
 // --- SEARCH ENGINE ---
@@ -383,7 +500,7 @@ function renderCheckScreen(check) {
     `;
 }
 
-function finishLesson() {
+async function finishLesson() {
     const { lessonId } = currentLessonState;
     const lesson = KNOWLEDGE_BASE.lessons[lessonId];
     const skill = KNOWLEDGE_BASE.skills[lesson.skillId];
@@ -421,17 +538,15 @@ function finishLesson() {
     userProgress.skills[skill.id].level = minLevel;
     if (minLevel >= 4) userProgress.stats.masteredSkills++;
 
-    saveProgress();
+    // NOW SAVE CLOUD
+    await saveProgressToCloud();
+    renderDashboard(); // Render earlier so UI looks instantly loaded
     
     const nextMsg = lessonProgress.nextReview > 0 
       ? `Следующее повторение через ${currentIntervalDays} дн.`
       : "Урок полностью освоен! 🔥";
       
-    alert(`Урок завершен! Прогресс: ${lessonProgress.masteryLevel} из 4. ${nextMsg}`);
-    renderDashboard();
+    setTimeout(() => {
+        alert(`Урок завершен! Прогресс: ${lessonProgress.masteryLevel} из 4. Данные сохранены в Облаке. ${nextMsg}`);
+    }, 100);
 }
-
-// Initial Render
-window.onload = () => {
-  renderDashboard();
-};
