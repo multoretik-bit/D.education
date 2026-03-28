@@ -85,6 +85,13 @@
                 };
             }
 
+            // Auto-generate rich titles from context for Blocks 7-25 if they are just generic numbered placeholders
+            if (lessonTitle.startsWith("Урок ") && lessonContent.context && !lessonContent.context.includes("(В разработке)")) {
+                let firstSentence = lessonContent.context.split('.')[0].split('!')[0].split('?')[0];
+                if (firstSentence.length > 70) firstSentence = firstSentence.substring(0, 67) + "...";
+                lessonTitle = firstSentence.trim();
+            }
+
             // Map check format accurately
             const checkObj = lessonContent.check || {
                 type: "explanation",
