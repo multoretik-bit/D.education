@@ -103,10 +103,10 @@ function renderSkills(subsystemId) {
     main.innerHTML = `
         <header style="margin-bottom: 3rem;" class="fade-in">
             <a href="#" onclick="renderSubsystems('${sub.areaId}')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-                <ion-icon name="arrow-back-outline"></ion-icon> Назад к блокам
+                <ion-icon name="arrow-back-outline"></ion-icon> К списку глав курса
             </a>
             <h1>${sub.title}</h1>
-            <p style="color: var(--text-secondary);">Выберите навык для прокачки.</p>
+            <p style="color: var(--text-secondary);">Выберите группу уроков.</p>
         </header>
         <div class="grid fade-in">
             ${sub.skills.map(skillId => {
@@ -131,14 +131,13 @@ function renderLessonsList(skillId) {
     const skill = KNOWLEDGE_BASE.skills[skillId];
     const sub = KNOWLEDGE_BASE.subsystems[skill.subsystemId];
     const main = document.getElementById('main-content');
-    
     main.innerHTML = `
         <header style="margin-bottom: 3rem;" class="fade-in">
             <a href="#" onclick="renderSkills('${skill.subsystemId}')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-                <ion-icon name="arrow-back-outline"></ion-icon> Назад к навыкам
+                <ion-icon name="arrow-back-outline"></ion-icon> Назад к группам уроков
             </a>
             <h1>${skill.title}</h1>
-            <p style="color: var(--text-secondary);">Микроуроки для изучения и повторения.</p>
+            <p style="color: var(--text-secondary);">Выберите урок для изучения.</p>
         </header>
         <div class="grid fade-in">
             ${skill.lessons.map(lessonId => {

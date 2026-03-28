@@ -1,5 +1,5 @@
 (function() {
-    console.log("Building KNOWLEDGE_BASE client-side...");
+    console.log("Building KNOWLEDGE_BASE client-side with new Navigation Architecture...");
     
     // Ensure prerequisites exist
     if (!window.CURRICULUM) {
@@ -9,7 +9,15 @@
     window.CONTENT = window.CONTENT || {};
 
     const KNOWLEDGE_BASE = {
-        blocks: [],
+        areas: [
+            {
+                id: 'finance_course',
+                title: 'Финансы (26 Глав)',
+                icon: 'wallet-outline',
+                subsystems: []
+            }
+        ],
+        subsystems: {},
         skills: {},
         lessons: {}
     };
@@ -20,15 +28,22 @@
         const blockData = window.CURRICULUM[blockIndex];
         if (!blockData) continue; 
 
-        const blockId = `b_${blockIndex}`;
+        const subsystemId = `b_${blockIndex}`;
         
-        KNOWLEDGE_BASE.blocks.push({
-            id: blockId,
-            title: blockData.title.startsWith("Блок ") ? blockData.title : `Блок ${blockIndex}. ${blockData.title}`,
-            skills: []
-        });
+        // Add to root course
+        KNOWLEDGE_BASE.areas[0].subsystems.push(subsystemId);
 
-        // Group lessons into skills (max 4 lessons per skill logically)
+        // Define Chapter (Subsystem)
+        KNOWLEDGE_BASE.subsystems[subsystemId] = {
+            id: subsystemId,
+            areaId: 'finance_course',
+            title: blockData.title.startsWith("Глава ") || blockData.title.startsWith("Блок ") 
+                ? blockData.title 
+                : `Глава ${blockIndex}. ${blockData.title}`,
+            skills: []
+        };
+
+        // Group lessons into skills (max 4-5 lessons per skill logically)
         const LESSONS_PER_SKILL = 4;
         let currentSkillId = null;
         let skillCounter = 1;
@@ -36,12 +51,13 @@
         for (let lessonIndex = 0; lessonIndex < blockData.lessons.length; lessonIndex++) {
             if (lessonIndex % LESSONS_PER_SKILL === 0) {
                 currentSkillId = `s_${blockIndex}_${skillCounter}`;
+                const endRange = Math.min(lessonIndex + LESSONS_PER_SKILL, blockData.lessons.length);
                 KNOWLEDGE_BASE.skills[currentSkillId] = {
-                    title: `Навык ${blockIndex}.${skillCounter} курса`,
-                    blockId: blockId,
+                    title: `Уроки ${lessonIndex + 1}-${endRange}`,
+                    subsystemId: subsystemId,
                     lessons: []
                 };
-                KNOWLEDGE_BASE.blocks.find(b => b.id === blockId).skills.push(currentSkillId);
+                KNOWLEDGE_BASE.subsystems[subsystemId].skills.push(currentSkillId);
                 skillCounter++;
             }
 
@@ -69,21 +85,28 @@
                 };
             }
 
+            // Map check format accurately
+            const checkObj = lessonContent.check || {
+                type: "explanation",
+                question: "Нет вопроса",
+                hint: "Нет подсказки"
+            };
+
             KNOWLEDGE_BASE.lessons[finalLessonId] = {
                 title: lessonTitle,
                 skillId: currentSkillId,
                 content: {
-                    context: lessonContent.context,
-                    essence: lessonContent.essence,
-                    example: lessonContent.example,
-                    action: lessonContent.action
+                    context: lessonContent.context || 'Нет данных',
+                    essence: lessonContent.essence || 'Нет данных',
+                    example: lessonContent.example || 'Нет данных',
+                    action: lessonContent.action || 'Нет данных'
                 },
-                check: lessonContent.check
+                check: checkObj
             };
         }
     }
 
     // Expose generated data to global scope for app.js
     window.KNOWLEDGE_BASE = KNOWLEDGE_BASE;
-    console.log("KNOWLEDGE_BASE generated successfully. Total lessons:", Object.keys(KNOWLEDGE_BASE.lessons).length);
+    console.log("KNOWLEDGE_BASE generated successfully. Total lessons mapped:", Object.keys(KNOWLEDGE_BASE.lessons).length);
 })();
