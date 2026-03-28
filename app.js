@@ -99,7 +99,13 @@ function getMonthName(m) {
     return ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"][m];
 }
 
+function updateNavActive(id) {
+    document.querySelectorAll('.nav-links a').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
 function renderDashboard() {
+  updateNavActive('nav-dashboard');
   const main = document.getElementById('main-content');
   
   // Calculate this week's dates (Monday to Sunday)
@@ -228,6 +234,67 @@ function handleModalSearch(query) {
     `).join('');
 }
 
+// Global Day Picker UI for Catalog Scheduling
+function openDayPickerModal(lessonId) {
+    // Create it dynamically if doesn't exist
+    let pModal = document.getElementById('day-picker-modal');
+    if(!pModal) {
+        const div = document.createElement('div');
+        div.id = 'day-picker-modal';
+        div.className = 'modal-overlay hidden';
+        div.innerHTML = `
+            <div class="modal-content" style="max-width:350px;">
+                <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <h3>Выберите день (План)</h3>
+                    <ion-icon name="close" onclick="document.getElementById('day-picker-modal').classList.add('hidden')" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
+                </header>
+                <input type="hidden" id="day-picker-lesson" value="">
+                <div id="day-picker-buttons" style="display:flex; flex-direction:column; gap:5px;"></div>
+            </div>
+        `;
+        document.body.appendChild(div);
+        pModal = div;
+    }
+    
+    // Generate dates mapping
+    const today = new Date();
+    const currentDay = today.getDay(); 
+    const distance = currentDay === 0 ? 6 : currentDay - 1; 
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - distance);
+    const daysOfWeek = ["ПОНЕДЕЛЬНИК", "ВТОРНИК", "СРЕДА", "ЧЕТВЕРГ", "ПЯТНИЦА", "СУББОТА", "ВОСКРЕСЕНЬЕ"];
+    
+    let html = '';
+    for(let i=0; i<7; i++) {
+        const dDate = new Date(monday);
+        dDate.setDate(monday.getDate() + i);
+        const y = dDate.getFullYear();
+        const m = String(dDate.getMonth() + 1).padStart(2, '0');
+        const d = String(dDate.getDate()).padStart(2, '0');
+        const dStr = `${y}-${m}-${d}`;
+        
+        let label = daysOfWeek[i];
+        if (dStr === today.toISOString().split('T')[0]) label += ' (Сегодня)';
+        
+        html += `<button class="btn" style="background:rgba(255,255,255,0.05); text-align:left; border:1px solid rgba(255,255,255,0.1);" onclick="scheduleFromPicker('${lessonId}', '${dStr}')">${label}</button>`;
+    }
+    
+    document.getElementById('day-picker-buttons').innerHTML = html;
+    pModal.classList.remove('hidden');
+}
+
+async function scheduleFromPicker(lessonId, dateStr) {
+    document.getElementById('day-picker-modal').classList.add('hidden');
+    if(!userProgress.schedule[dateStr]) userProgress.schedule[dateStr] = [];
+    if(!userProgress.schedule[dateStr].includes(lessonId)) {
+        userProgress.schedule[dateStr].push(lessonId);
+        await saveProgressToCloud();
+        alert('✅ Урок успешно добавлен в календарь на этот день!');
+    } else {
+        alert('Этот урок уже есть в плане на этот день.');
+    }
+}
+
 async function addLessonToSchedule(lessonId) {
     const dateStr = document.getElementById('modal-active-date').value;
     if(!userProgress.schedule[dateStr]) userProgress.schedule[dateStr] = [];
@@ -241,6 +308,7 @@ async function addLessonToSchedule(lessonId) {
 }
 
 function renderAreas() {
+    updateNavActive('nav-catalog');
     const main = document.getElementById('main-content');
     main.innerHTML = `
         <header style="margin-bottom: 3rem;" class="fade-in">
@@ -346,19 +414,27 @@ function renderLessonsList(skillId) {
                 }
 
                 return `
-                    <div class="micro-lesson-card ${isLocked ? 'lesson-locked' : ''}" 
-                         onclick="${isLocked ? '' : `startLesson('${lessonId}')`}">
+                    <div class="micro-lesson-card ${isLocked ? 'lesson-locked' : ''}">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                             <span class="badge-srs" style="background: var(--lvl-${mastery || 1});">Ур. ${mastery}/4</span>
-                            ${isLocked ? `
-                                <div class="lock-overlay"><ion-icon name="lock-closed"></ion-icon> ${lockMsg}</div>
-                            ` : mastery >= 4 ? `
-                                <ion-icon name="checkmark-done-circle" style="color: var(--lvl-4); font-size: 1.5rem;"></ion-icon>
-                            ` : ''}
+                            <div style="display:flex; align-items:center; gap: 8px;">
+                                ${mastery < 4 && !isLocked ? `
+                                    <button onclick="openDayPickerModal('${lessonId}')" class="btn" style="padding: 2px 8px; font-size: 0.8rem; border: 1px solid var(--primary); color: var(--text-main); background: rgba(255, 64, 129, 0.2); display:flex; align-items:center; gap: 4px;" title="Запланировать">
+                                        <ion-icon name="calendar-outline"></ion-icon> В План
+                                    </button>
+                                ` : ''}
+                                ${isLocked ? `
+                                    <div class="lock-overlay" style="position:static; padding: 4px 8px; transform:none;"><ion-icon name="lock-closed"></ion-icon> ${lockMsg}</div>
+                                ` : mastery >= 4 ? `
+                                    <ion-icon name="checkmark-done-circle" style="color: var(--lvl-4); font-size: 1.5rem;"></ion-icon>
+                                ` : ''}
+                            </div>
                         </div>
-                        <h3>${lesson.title}</h3>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar-fill" style="width: ${mastery * 25}%; background: var(--lvl-${mastery || 1});"></div>
+                        <div onclick="${isLocked ? '' : `startLesson('${lessonId}')`}" style="margin-top: 10px;">
+                            <h3>${lesson.title}</h3>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" style="width: ${mastery * 25}%; background: var(--lvl-${mastery || 1});"></div>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -368,6 +444,7 @@ function renderLessonsList(skillId) {
 }
 
 function renderProfile() {
+    updateNavActive('nav-profile');
     const main = document.getElementById('main-content');
     
     // Stats
@@ -468,6 +545,7 @@ function handleSearch(event) {
 
 function renderSearchResults(query) {
   currentView = 'search';
+  updateNavActive(null);
   const main = document.getElementById('main-content');
   const results = Object.values(KNOWLEDGE_BASE.lessons).filter(l => 
     l.title.toLowerCase().includes(query) || 

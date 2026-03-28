@@ -20,15 +20,15 @@
     <div class="container fade-in">
         <nav>
             <div class="logo">🧠 D-<span>SYSTEM</span></div>
-            <nav class="nav">
-                <a href="#" class="active" onclick="renderDashboard()">📝 Обучение</a>
-                <a href="#" onclick="renderAreas()">🧭 Каталог</a>
-                <a href="#" onclick="renderProfile()">👤 Профиль</a>
-                <div class="search-container">
-                    <input type="text" id="search-input" placeholder="Найти урок..." onkeyup="handleSearch(event)">
-                    <ion-icon name="search-outline"></ion-icon>
-                </div>
-            </nav>
+            <ul class="nav-links">
+                <li><a href="#" class="active" id="nav-dashboard" onclick="renderDashboard()"><ion-icon name="calendar-outline"></ion-icon> План на неделю</a></li>
+                <li><a href="#" id="nav-catalog" onclick="renderAreas()"><ion-icon name="compass-outline"></ion-icon> Каталог Курсов</a></li>
+                <li><a href="#" id="nav-profile" onclick="renderProfile()"><ion-icon name="person-outline"></ion-icon> Профиль</a></li>
+            </ul>
+            <div style="margin-top: auto; position: relative;">
+                <input type="text" id="search-input" class="search-box" style="width: 100%; padding-left: 2.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;" placeholder="Найти урок..." onkeyup="handleSearch(event)">
+                <ion-icon name="search-outline" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></ion-icon>
+            </div>
         </nav>
 
         <!-- MAIN VIEW (DASHBOARD OR LESSON) -->
