@@ -158,16 +158,16 @@ function renderLessonsList(skillId) {
                     <div class="micro-lesson-card ${isLocked ? 'lesson-locked' : ''}" 
                          onclick="${isLocked ? '' : `startLesson('${lessonId}')`}">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                            <span class="badge-srs" style="background: var(--lvl-${mastery || 1});">Ур. ${mastery}/5</span>
+                            <span class="badge-srs" style="background: var(--lvl-${mastery || 1});">Ур. ${mastery}/4</span>
                             ${isLocked ? `
                                 <div class="lock-overlay"><ion-icon name="lock-closed"></ion-icon> ${lockMsg}</div>
-                            ` : mastery >= 5 ? `
-                                <ion-icon name="checkmark-done-circle" style="color: var(--lvl-5); font-size: 1.5rem;"></ion-icon>
+                            ` : mastery >= 4 ? `
+                                <ion-icon name="checkmark-done-circle" style="color: var(--lvl-4); font-size: 1.5rem;"></ion-icon>
                             ` : ''}
                         </div>
                         <h3>${lesson.title}</h3>
                         <div class="progress-bar-container">
-                            <div class="progress-bar-fill" style="width: ${mastery * 20}%; background: var(--lvl-${mastery || 1});"></div>
+                            <div class="progress-bar-fill" style="width: ${mastery * 25}%; background: var(--lvl-${mastery || 1});"></div>
                         </div>
                     </div>
                 `;
@@ -243,7 +243,7 @@ function renderSearchResults(query) {
                      onclick="${isLocked ? '' : `startLesson('${lesson.id}')`}">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <span class="badge-srs" style="background: var(--lvl-${progress.masteryLevel || 1});">
-                            Ур. ${progress.masteryLevel}/5
+                            Ур. ${progress.masteryLevel}/4
                         </span>
                         ${isLocked ? '<ion-icon name="lock-closed"></ion-icon>' : ''}
                     </div>
@@ -282,7 +282,7 @@ function renderTodayLessons() {
 function renderSkillCards() {
   return Object.values(KNOWLEDGE_BASE.skills).map(skill => {
     const progress = userProgress.skills[skill.id] || { level: 1, xp: 0 };
-    const levelPercent = (progress.level / 5) * 100;
+    const levelPercent = (progress.level / 4) * 100;
     return `
       <div class="skill-card" style="flex-direction: column; align-items: flex-start;">
         <div style="display: flex; align-items: center; gap: 1rem; width: 100%;">
@@ -319,7 +319,7 @@ function startLesson(lessonId) {
           { type: 'essence', title: 'Суть', text: lesson.content.essence },
           { type: 'example', title: 'Пример', text: lesson.content.example },
           { type: 'action', title: 'Применение', text: lesson.content.action },
-          { type: 'check', title: 'Проверка', check: lesson.content.check }
+          { type: 'check', title: 'Проверка', check: lesson.check }
       ]
   };
   renderLessonStep();
@@ -398,7 +398,7 @@ function finishLesson() {
     }
     
     const lessonProgress = userProgress.lessons[lessonId];
-    lessonProgress.masteryLevel = Math.min(lessonProgress.masteryLevel + 1, 5);
+    lessonProgress.masteryLevel = Math.min(lessonProgress.masteryLevel + 1, 4);
     lessonProgress.lastPassed = Date.now();
     
     // Calculate next interval based on user request: 3, 7, 30 days
@@ -419,7 +419,7 @@ function finishLesson() {
         userProgress.skills[skill.id] = { level: 1, xp: 0 };
     }
     userProgress.skills[skill.id].level = minLevel;
-    if (minLevel >= 5) userProgress.stats.masteredSkills++;
+    if (minLevel >= 4) userProgress.stats.masteredSkills++;
 
     saveProgress();
     
@@ -427,7 +427,7 @@ function finishLesson() {
       ? `Следующее повторение через ${currentIntervalDays} дн.`
       : "Урок полностью освоен! 🔥";
       
-    alert(`Урок завершен! Уровень мастерства: ${lessonProgress.masteryLevel}/5. ${nextMsg}`);
+    alert(`Урок завершен! Прогресс: ${lessonProgress.masteryLevel} из 4. ${nextMsg}`);
     renderDashboard();
 }
 
