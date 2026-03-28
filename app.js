@@ -142,23 +142,37 @@ function renderDashboard() {
            <div class="day-tasks">
                ${renderScheduledTasks(dateStr)}
            </div>
-           <button class="add-task-btn" onclick="openScheduleModal('${dateStr}')"><ion-icon name="add-outline"></ion-icon> План</button>
+           <button class="add-task-btn" onclick="openScheduleModal('${dateStr}', '${daysOfWeek[i]}, ${dateIter.getDate()} ${getMonthName(dateIter.getMonth())}')"><ion-icon name="add-outline"></ion-icon> План</button>
        </div>
      `;
   }
   calendarHtml += `</div>
      <!-- Modal Template -->
      <div id="schedule-modal" class="modal-overlay hidden">
-         <div class="modal-content">
-             <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1rem;">
-                <h3 style="color:var(--primary);"><ion-icon name="calendar-outline"></ion-icon> Добавить в план</h3>
+         <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column;">
+             <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1rem; flex-shrink: 0;">
+                <h3 style="color:var(--primary); font-size: 1.2rem;"><ion-icon name="calendar-outline"></ion-icon> План: <span id="modal-date-display" style="color: var(--text-main);">...</span></h3>
                 <ion-icon name="close" onclick="closeScheduleModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
              </header>
-             <p style="color:var(--text-secondary); margin-bottom: 1rem; font-size:0.9rem;">Найдите нужный урок из полного курса (534 уроков):</p>
-             <input type="text" id="modal-search" class="check-input" style="margin-top:0;" placeholder="Поиск (например: крипта, кредит, риск...)" onkeyup="handleModalSearch(this.value)">
-             <input type="hidden" id="modal-active-date" value="">
-             <div id="modal-search-results" style="margin-top: 1rem; max-height: 250px; overflow-y:auto;">
+             <p style="color:var(--text-secondary); margin-bottom: 1rem; font-size:0.9rem; flex-shrink: 0;">Выберите уроки для добавления в ваш учебный день:</p>
+             
+             <!-- TABS -->
+             <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-shrink: 0;">
+                <button class="btn btn-primary" id="btn-tab-browse" onclick="switchModalTab('browse')" style="flex:1; padding: 0.5rem; font-size: 0.9rem; border-radius: 8px;">📚 Из Каталога Глав</button>
+                <button class="btn" id="btn-tab-search" onclick="switchModalTab('search')" style="flex:1; padding: 0.5rem; font-size: 0.9rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: 8px;">🔍 Поиск текстом</button>
              </div>
+
+             <!-- CONTENT AREAS -->
+             <div id="modal-tab-browse" style="overflow-y:auto; flex-grow: 1; border: 1px solid rgba(255,255,255,0.05); padding: 10px; border-radius: var(--radius);">
+                 <!-- Hierarchy injected here via JS -->
+             </div>
+
+             <div id="modal-tab-search" class="hidden" style="flex-grow: 1; display:flex; flex-direction:column;">
+                 <input type="text" id="modal-search" class="check-input" style="margin-top:0; flex-shrink: 0; padding: 0.75rem;" placeholder="Поиск (например: крипта, кредит, риск...)" onkeyup="handleModalSearch(this.value)">
+                 <div id="modal-search-results" style="margin-top: 1rem; overflow-y:auto; flex-grow: 1;"></div>
+             </div>
+             
+             <input type="hidden" id="modal-active-date" value="">
          </div>
      </div>
   `;
@@ -196,12 +210,105 @@ function renderScheduledTasks(dateStr) {
 }
 
 // Modal functions
-function openScheduleModal(dateStr) {
-    document.getElementById('schedule-modal').classList.remove('hidden');
+function switchModalTab(tab) {
+    const browseRaw = document.getElementById('modal-tab-browse');
+    const searchRaw = document.getElementById('modal-tab-search');
+    const btnBrowse = document.getElementById('btn-tab-browse');
+    const btnSearch = document.getElementById('btn-tab-search');
+
+    if(tab === 'browse') {
+        browseRaw.classList.remove('hidden');
+        searchRaw.classList.add('hidden');
+        btnBrowse.className = 'btn btn-primary';
+        btnBrowse.style.background = '';
+        btnBrowse.style.border = 'none';
+        
+        btnSearch.className = 'btn';
+        btnSearch.style.background = 'rgba(255,255,255,0.05)';
+        btnSearch.style.border = '1px solid rgba(255,255,255,0.1)';
+        btnSearch.style.color = 'var(--text-main)';
+    } else {
+        searchRaw.classList.remove('hidden');
+        browseRaw.classList.add('hidden');
+        btnSearch.className = 'btn btn-primary';
+        btnSearch.style.background = '';
+        btnSearch.style.border = 'none';
+        
+        btnBrowse.className = 'btn';
+        btnBrowse.style.background = 'rgba(255,255,255,0.05)';
+        btnBrowse.style.border = '1px solid rgba(255,255,255,0.1)';
+        btnBrowse.style.color = 'var(--text-main)';
+        
+        document.getElementById('modal-search').focus();
+    }
+}
+
+function renderModalBrowserTree() {
+    const container = document.getElementById('modal-tab-browse');
+    let html = '';
+    const area = KNOWLEDGE_BASE.areas[0]; // Курс Финансов
+    
+    html += `<div style="font-weight: bold; font-size: 1.1rem; color: white; margin-bottom: 15px; display:flex; align-items:center; gap:8px;"><ion-icon name="school" style="color:var(--primary);"></ion-icon> ${area.title}</div>`;
+    
+    area.subsystems.forEach(subId => {
+        const sub = KNOWLEDGE_BASE.subsystems[subId];
+        if(!sub) return;
+        
+        html += `
+        <div class="tree-node fade-in" style="margin-bottom: 6px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+            <div onclick="toggleTreeNode('node-${subId}')" style="cursor: pointer; padding: 12px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s;">
+                <span style="font-weight: 500; font-size: 0.95rem;">${sub.title}</span>
+                <ion-icon name="chevron-down-outline" id="icon-node-${subId}" style="transition:0.3s; color: var(--text-secondary);"></ion-icon>
+            </div>
+            <div id="node-${subId}" class="tree-children hidden" style="padding: 0 10px 10px 10px;">
+        `;
+        
+        sub.skills.forEach(skillId => {
+            const skill = KNOWLEDGE_BASE.skills[skillId];
+            if(!skill) return;
+            skill.lessons.forEach(lId => {
+                const lesson = KNOWLEDGE_BASE.lessons[lId];
+                if(!lesson) return;
+                html += `
+                <div class="search-result-item" style="padding: 8px 10px; margin-bottom: 4px; font-size: 0.85rem; border-radius: 6px; background: rgba(0,0,0,0.2);">
+                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width: 80%;">${lesson.title}</span>
+                    <button class="btn" title="Добавить на этот день" onclick="addLessonToSchedule('${lId}')" style="padding: 4px 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); display:flex; align-items:center; gap:4px; font-size:0.8rem; border-radius: 4px;">
+                        <ion-icon name="add"></ion-icon> План
+                    </button>
+                </div>
+                `;
+            });
+        });
+        
+        html += `</div></div>`;
+    });
+    
+    container.innerHTML = html;
+}
+
+function toggleTreeNode(id) {
+    const el = document.getElementById(id);
+    const icon = document.getElementById('icon-' + id);
+    if(el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        el.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+    }
+}
+
+function openScheduleModal(dateStr, formattedDate) {
+    const modal = document.getElementById('schedule-modal');
+    modal.classList.remove('hidden');
     document.getElementById('modal-active-date').value = dateStr;
+    document.getElementById('modal-date-display').innerText = formattedDate || dateStr;
     document.getElementById('modal-search').value = '';
     document.getElementById('modal-search-results').innerHTML = '';
-    document.getElementById('modal-search').focus();
+    
+    // Default to the new browse mode
+    switchModalTab('browse');
+    renderModalBrowserTree();
 }
 
 function closeScheduleModal() {

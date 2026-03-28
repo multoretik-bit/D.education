@@ -413,13 +413,13 @@ main {
     align-items: center;
     z-index: 1000;
 }
-.modal-overlay.hidden {
-    display: none;
+.modal-overlay.hidden, .tree-children.hidden {
+    display: none !important;
 }
 .modal-content {
     background: var(--bg-card);
     width: 90%;
-    max-width: 500px;
+    max-width: 600px;
     padding: 2rem;
     border-radius: var(--radius);
     border: 1px solid rgba(255,255,255,0.1);
