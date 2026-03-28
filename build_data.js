@@ -61,7 +61,7 @@
                 skillCounter++;
             }
 
-            const lessonTitle = blockData.lessons[lessonIndex];
+            let lessonTitle = blockData.lessons[lessonIndex];
             const rawContentId = `ml_${blockIndex}_${lessonIndex}`;
             const finalLessonId = `ml_${globalLessonIdCounter}`;
             globalLessonIdCounter++;
