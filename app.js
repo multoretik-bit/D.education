@@ -13,7 +13,10 @@ let userProgress = {
     skills: {},
     stats: { totalXp: 0, coins: 0, masteredSkills: 0, streak: 0 },
     schedule: {},
-    customLessons: {}
+    customLessons: {},
+    customAreas: {},
+    customSubsystems: {},
+    customSkills: {}
 };
 
 let currentLessonState = {
@@ -28,32 +31,36 @@ async function loadProgressFromCloud() {
     main.innerHTML = `<p style="text-align:center; margin-top: 5rem; color: var(--text-secondary);">Синхронизация с облаком...</p>`;
 
     try {
-        const { data, error } = await supabaseClient.from('user_progress').select('data').eq('user_id', currentUser).single();
+        const { data, error } = await supabaseClient
+            .from('user_progress')
+            .select('data')
+            .eq('user_id', currentUser)
+            .maybeSingle(); // Better than single() which errors on empty
+
         if (data && data.data) {
-            userProgress = data.data;
-            if (!userProgress.schedule) userProgress.schedule = {};
-            if (!userProgress.customLessons) userProgress.customLessons = {};
+            // Merge with local state to avoid losing new fields
+            userProgress = { ...userProgress, ...data.data };
         } else {
-            // Migrate offline to online if possible
+            // No data in cloud, check local
             const local = JSON.parse(localStorage.getItem('d_edu_v2_progress'));
             if (local) {
-                userProgress = local;
-                if (!userProgress.schedule) userProgress.schedule = {};
-                if (!userProgress.customLessons) userProgress.customLessons = {};
+                userProgress = { ...userProgress, ...local };
+                await saveProgressToCloud(); // Save local migration to cloud
             }
-            await saveProgressToCloud();
         }
     } catch (e) {
-        console.warn("Could not fetch progress online, relying on local", e);
+        console.warn("Cloud sync error, using local fallback:", e);
         const local = JSON.parse(localStorage.getItem('d_edu_v2_progress'));
-        if (local) userProgress = local;
+        if (local) userProgress = { ...userProgress, ...local };
     }
 
+    // Ensure all required fields exist
     if (!userProgress.schedule) userProgress.schedule = {};
     if (!userProgress.customLessons) userProgress.customLessons = {};
     if (!userProgress.customAreas) userProgress.customAreas = {};
     if (!userProgress.customSubsystems) userProgress.customSubsystems = {};
     if (!userProgress.customSkills) userProgress.customSkills = {};
+    
     injectCustomCourse();
 }
 
@@ -132,12 +139,17 @@ async function saveProgressToCloud() {
     if (!currentUser) return;
 
     try {
-        await supabaseClient.from('user_progress').upsert({
-            user_id: currentUser,
-            data: userProgress
-        });
+        const { error } = await supabaseClient
+            .from('user_progress')
+            .upsert(
+                { user_id: currentUser, data: userProgress, last_updated: new Date().toISOString() },
+                { onConflict: 'user_id' }
+            );
+        
+        if (error) throw error;
+        console.log("Cloud sync success");
     } catch (e) {
-        console.error("Cloud save failed", e);
+        console.error("Cloud save failed:", e);
     }
 }
 
