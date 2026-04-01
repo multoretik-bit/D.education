@@ -54,7 +54,47 @@
                     <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 5px;">Суть / Заметки (то, что нужно запомнить)</label>
                     <textarea id="custom-lesson-notes" class="check-input" style="margin-top: 0; min-height: 150px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-main); padding: 10px; font-family: inherit; width: 100%; box-sizing: border-box;" placeholder="Напишите здесь то, что вы хотите выучить. В будущем этот текст появится как карточка для повторения."></textarea>
                 </div>
+                <input type="hidden" id="custom-lesson-target-skill" value="">
                 <button class="btn btn-primary" style="margin-top: 1rem;" onclick="saveCustomLesson()">Сохранить урок в базу</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Course Modal -->
+    <div id="create-course-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 400px;">
+            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 style="color:var(--primary);"><ion-icon name="add-circle-outline"></ion-icon> Новый курс</h3>
+                <ion-icon name="close" onclick="closeCreateCourseModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
+            </header>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label class="modal-label">Название вашего курса</label>
+                    <input type="text" id="course-title-input" class="check-input" style="margin-top: 0;" placeholder="Например: Мой Английский">
+                </div>
+                <div>
+                    <label class="modal-label">Иконка (название IonIcon)</label>
+                    <input type="text" id="course-icon-input" class="check-input" style="margin-top: 0;" value="school-outline" placeholder="book-outline, fitness-outline...">
+                </div>
+                <button class="btn btn-primary" onclick="saveCustomCourse()">Создать курс</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Chapter Modal -->
+    <div id="create-chapter-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 400px;">
+            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 style="color:var(--secondary);"><ion-icon name="folder-open-outline"></ion-icon> Новая глава</h3>
+                <ion-icon name="close" onclick="closeCreateChapterModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
+            </header>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label class="modal-label">Название главы (раздела)</label>
+                    <input type="text" id="chapter-title-input" class="check-input" style="margin-top: 0;" placeholder="Например: Грамматика">
+                </div>
+                <input type="hidden" id="chapter-target-area" value="">
+                <button class="btn btn-primary" style="background: var(--secondary); box-shadow: 0 5px 15px rgba(0, 229, 255, 0.2);" onclick="saveCustomChapter()">Создать главу</button>
             </div>
         </div>
     </div>

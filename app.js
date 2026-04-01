@@ -51,42 +51,74 @@ async function loadProgressFromCloud() {
 
     if (!userProgress.schedule) userProgress.schedule = {};
     if (!userProgress.customLessons) userProgress.customLessons = {};
+    if (!userProgress.customAreas) userProgress.customAreas = {};
+    if (!userProgress.customSubsystems) userProgress.customSubsystems = {};
+    if (!userProgress.customSkills) userProgress.customSkills = {};
     injectCustomCourse();
 }
 
 function injectCustomCourse() {
-    const customAreaIndex = KNOWLEDGE_BASE.areas.findIndex(a => a.id === 'area_custom');
-    if (customAreaIndex === -1) {
-        KNOWLEDGE_BASE.areas.push({
+    // 1. Maintain the legacy/default custom area
+    if (!userProgress.customAreas['area_custom']) {
+        userProgress.customAreas['area_custom'] = {
             id: 'area_custom',
             title: 'Свои уроки',
             icon: 'create-outline',
             subsystems: ['sub_custom']
-        });
+        };
     }
-
-    if (!KNOWLEDGE_BASE.subsystems['sub_custom']) {
-        KNOWLEDGE_BASE.subsystems['sub_custom'] = {
+    if (!userProgress.customSubsystems['sub_custom']) {
+        userProgress.customSubsystems['sub_custom'] = {
             id: 'sub_custom',
             areaId: 'area_custom',
             title: 'Личные материалы',
             skills: ['skill_custom']
         };
     }
+    if (!userProgress.customSkills['skill_custom']) {
+        userProgress.customSkills['skill_custom'] = {
+            id: 'skill_custom',
+            subsystemId: 'sub_custom',
+            title: 'Мои карточки (Собственные знания)',
+            lessons: []
+        };
+    }
 
-    const customLessonIds = Object.keys(userProgress.customLessons);
-    KNOWLEDGE_BASE.skills['skill_custom'] = {
-        id: 'skill_custom',
-        subsystemId: 'sub_custom',
-        title: 'Мои карточки (Собственные знания)',
-        lessons: customLessonIds
-    };
+    // 2. Inject Areas
+    Object.values(userProgress.customAreas).forEach(area => {
+        const existingIndex = KNOWLEDGE_BASE.areas.findIndex(a => a.id === area.id);
+        const areaData = { ...area };
+        if (existingIndex === -1) {
+            KNOWLEDGE_BASE.areas.push(areaData);
+        } else {
+            KNOWLEDGE_BASE.areas[existingIndex] = areaData;
+        }
+    });
 
-    customLessonIds.forEach(id => {
+    // 3. Inject Subsystems
+    Object.values(userProgress.customSubsystems).forEach(sub => {
+        KNOWLEDGE_BASE.subsystems[sub.id] = { ...sub };
+    });
+
+    // 4. Inject Skills (Groups)
+    Object.values(userProgress.customSkills).forEach(skill => {
+        KNOWLEDGE_BASE.skills[skill.id] = { ...skill, lessons: [] }; // Reset lessons to re-fill
+    });
+
+    // 5. Inject Lessons
+    const allLessonIds = Object.keys(userProgress.customLessons);
+    allLessonIds.forEach(id => {
         const customData = userProgress.customLessons[id];
+        const targetSkillId = customData.skillId || 'skill_custom';
+        
+        // Ensure skill exists
+        if (KNOWLEDGE_BASE.skills[targetSkillId]) {
+            KNOWLEDGE_BASE.skills[targetSkillId].lessons.push(id);
+        }
+
         KNOWLEDGE_BASE.lessons[id] = {
             id: id,
-            skillId: 'skill_custom',
+            skillId: targetSkillId,
             title: customData.title,
             content: {
                 notes: customData.notes
@@ -111,9 +143,84 @@ async function saveProgressToCloud() {
 
 // --- CUSTOM USER LESSONS ---
 
-function openCustomLessonModal() {
+// --- COURSE BUILDER ---
+
+function openCreateCourseModal() {
+    const modal = document.getElementById('create-course-modal');
+    modal.classList.remove('hidden');
+    document.getElementById('course-title-input').value = '';
+    document.getElementById('course-title-input').focus();
+}
+
+function closeCreateCourseModal() {
+    document.getElementById('create-course-modal').classList.add('hidden');
+}
+
+async function saveCustomCourse() {
+    const title = document.getElementById('course-title-input').value.trim();
+    const icon = document.getElementById('course-icon-input').value.trim() || 'school-outline';
+    if (!title) return alert('Введите название курса');
+
+    const id = 'user_area_' + Date.now();
+    userProgress.customAreas[id] = {
+        id: id,
+        title: title,
+        icon: icon,
+        subsystems: []
+    };
+
+    injectCustomCourse();
+    await saveProgressToCloud();
+    closeCreateCourseModal();
+    renderAreas();
+}
+
+function openCreateChapterModal(areaId) {
+    const modal = document.getElementById('create-chapter-modal');
+    modal.classList.remove('hidden');
+    document.getElementById('chapter-target-area').value = areaId;
+    document.getElementById('chapter-title-input').value = '';
+    document.getElementById('chapter-title-input').focus();
+}
+
+function closeCreateChapterModal() {
+    document.getElementById('create-chapter-modal').classList.add('hidden');
+}
+
+async function saveCustomChapter() {
+    const title = document.getElementById('chapter-title-input').value.trim();
+    const areaId = document.getElementById('chapter-target-area').value;
+    if (!title) return alert('Введите название раздела');
+
+    const subId = 'user_sub_' + Date.now();
+    const skillId = 'user_skill_' + Date.now();
+
+    userProgress.customSubsystems[subId] = {
+        id: subId,
+        areaId: areaId,
+        title: title,
+        skills: [skillId]
+    };
+
+    userProgress.customSkills[skillId] = {
+        id: skillId,
+        subsystemId: subId,
+        title: 'Уроки раздела',
+        lessons: []
+    };
+
+    userProgress.customAreas[areaId].subsystems.push(subId);
+
+    injectCustomCourse();
+    await saveProgressToCloud();
+    closeCreateChapterModal();
+    renderSubsystems(areaId);
+}
+
+function openCustomLessonModal(skillId) {
     const modal = document.getElementById('custom-lesson-modal');
     modal.classList.remove('hidden');
+    document.getElementById('custom-lesson-target-skill').value = skillId || 'skill_custom';
     document.getElementById('custom-lesson-title').value = '';
     document.getElementById('custom-lesson-notes').value = '';
     document.getElementById('custom-lesson-title').focus();
@@ -126,6 +233,7 @@ function closeCustomLessonModal() {
 async function saveCustomLesson() {
     const title = document.getElementById('custom-lesson-title').value.trim();
     const notes = document.getElementById('custom-lesson-notes').value.trim();
+    const skillId = document.getElementById('custom-lesson-target-skill').value;
 
     if (!title) return alert('Введите название урока');
     if (!notes) return alert('Введите описание или заметки к уроку');
@@ -134,15 +242,53 @@ async function saveCustomLesson() {
     userProgress.customLessons[id] = {
         title: title,
         notes: notes,
+        skillId: skillId,
         createdAt: Date.now()
     };
 
-    // Re-inject and re-render
     injectCustomCourse();
     await saveProgressToCloud();
     closeCustomLessonModal();
-    renderLessonsList('skill_custom');
-    alert('Урок успешно создан!');
+    renderLessonsList(skillId);
+    alert('Урок сохранен!');
+}
+
+async function deleteCustomLesson(id, skillId) {
+    if (!confirm('Удалить этот урок навсегда?')) return;
+    delete userProgress.customLessons[id];
+    injectCustomCourse();
+    await saveProgressToCloud();
+    renderLessonsList(skillId);
+}
+
+async function deleteCustomArea(areaId) {
+    if (!confirm('Вы уверены, что хотите удалить весь курс? Это действие нельзя отменить.')) return;
+    
+    // Cleanup subsystems and skills associated with this area
+    const area = userProgress.customAreas[areaId];
+    if (area) {
+        area.subsystems.forEach(subId => {
+            const sub = userProgress.customSubsystems[subId];
+            if (sub) {
+                sub.skills.forEach(skillId => {
+                    // We could also delete lessons, but for safety let's just detach them?
+                    // Actually, the user asked to "delete courses", so let's clean up lessons too.
+                    Object.keys(userProgress.customLessons).forEach(lId => {
+                        if (userProgress.customLessons[lId].skillId === skillId) {
+                            delete userProgress.customLessons[lId];
+                        }
+                    });
+                    delete userProgress.customSkills[skillId];
+                });
+                delete userProgress.customSubsystems[subId];
+            }
+        });
+        delete userProgress.customAreas[areaId];
+    }
+    
+    injectCustomCourse();
+    await saveProgressToCloud();
+    renderAreas();
 }
 
 function renderLoginAuth() {
@@ -707,7 +853,10 @@ function renderAreas() {
 
     main.innerHTML = `
         <header style="margin-bottom: 3rem;" class="fade-in">
-            <h1>Каталог знаний</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1>Каталог знаний</h1>
+                <button class="btn btn-primary" onclick="openCreateCourseModal()" style="padding: 0.5rem 1rem; font-size: 0.8rem; text-transform:none;">➕ Создать курс</button>
+            </div>
             <p style="color: var(--text-secondary);">Выберите область для изучения.</p>
         </header>
         <div class="grid fade-in">
@@ -738,12 +887,22 @@ function renderAreas() {
 function renderSubsystems(areaId) {
     const area = KNOWLEDGE_BASE.areas.find(a => a.id === areaId);
     const main = document.getElementById('main-content');
+    const isCustom = userProgress.customAreas[areaId] !== undefined;
+
     main.innerHTML = `
         <header style="margin-bottom: 3rem;" class="fade-in">
             <a href="#" onclick="renderAreas()" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
                 <ion-icon name="arrow-back-outline"></ion-icon> Назад к областям
             </a>
-            <h1>${area.title}</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1>${area.title}</h1>
+                <div style="display:flex; gap: 10px;">
+                    ${isCustom && areaId !== 'area_custom' ? `
+                        <button class="btn" onclick="openCreateChapterModal('${areaId}')" style="padding: 0.5rem 1rem; font-size: 0.8rem; text-transform:none; background: rgba(0,229,255,0.1); color: var(--secondary); border: 1px solid var(--secondary);">➕ Добавить главу</button>
+                        <button class="btn" onclick="deleteCustomArea('${areaId}')" style="padding: 0.5rem 1rem; font-size: 0.8rem; text-transform:none; background: rgba(255,64,129,0.1); color: var(--primary); border: 1px solid var(--primary);">🗑 Удалить курс</button>
+                    ` : ''}
+                </div>
+            </div>
             <p style="color: var(--text-secondary);">Выберите блок обучения.</p>
         </header>
         <div class="grid fade-in" style="grid-template-columns: 1fr;">
@@ -798,6 +957,8 @@ function renderLessonsList(skillId) {
     const skill = KNOWLEDGE_BASE.skills[skillId];
     const sub = KNOWLEDGE_BASE.subsystems[skill.subsystemId];
     const main = document.getElementById('main-content');
+    const isCustomSkill = userProgress.customSkills[skillId] !== undefined || skillId === 'skill_custom';
+
     main.innerHTML = `
         <header style="margin-bottom: 3rem;" class="fade-in">
             <a href="#" onclick="renderSkills('${skill.subsystemId}')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
@@ -807,11 +968,11 @@ function renderLessonsList(skillId) {
             <p style="color: var(--text-secondary);">Выберите урок для изучения.</p>
         </header>
         <div class="grid fade-in">
-            ${skillId === 'skill_custom' ? `
-                <div class="micro-lesson-card" onclick="openCustomLessonModal()" style="border: 2px dashed rgba(255, 64, 129, 0.4); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; background: rgba(255, 64, 129, 0.05); cursor: pointer; transition: 0.3s; padding: 2rem; text-align: center;">
+            ${isCustomSkill ? `
+                <div class="micro-lesson-card" onclick="openCustomLessonModal('${skillId}')" style="border: 2px dashed rgba(255, 64, 129, 0.4); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; background: rgba(255, 64, 129, 0.05); cursor: pointer; transition: 0.3s; padding: 2rem; text-align: center;">
                     <ion-icon name="add-circle-outline" style="font-size: 3.5rem; color: var(--primary); margin-bottom: 1rem;"></ion-icon>
                     <h3 style="color: var(--primary); font-family: 'Outfit'; font-size: 1.4rem;">Добавить свой материал</h3>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Создайте персональную карточку для обучения</p>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Создайте персональную карточку в эту главу</p>
                 </div>
             ` : ''}
             ${skill.lessons.map(lessonId => {
@@ -821,6 +982,7 @@ function renderLessonsList(skillId) {
         const progress = userProgress.lessons[lessonId] || { masteryLevel: 0, nextReview: 0 };
         const isLocked = progress.nextReview > Date.now();
         const mastery = progress.masteryLevel;
+        const isUserLesson = userProgress.customLessons[lessonId] !== undefined;
 
         let lockMsg = "";
         if (isLocked) {
@@ -833,6 +995,11 @@ function renderLessonsList(skillId) {
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                             <span class="badge-srs" style="background: var(--lvl-${mastery || 1});">Ур. ${mastery}/4</span>
                             <div style="display:flex; align-items:center; gap: 8px;">
+                                ${isUserLesson ? `
+                                    <button onclick="deleteCustomLesson('${lessonId}', '${skillId}')" class="btn" style="padding: 4px; font-size: 1.2rem; background: transparent; color: var(--text-secondary); display:flex; align-items:center;" title="Удалить">
+                                        <ion-icon name="trash-outline"></ion-icon>
+                                    </button>
+                                ` : ''}
                                 ${mastery < 4 && !isLocked ? `
                                     <button onclick="openDayPickerModal('${lessonId}')" class="btn" style="padding: 2px 8px; font-size: 0.8rem; border: 1px solid var(--primary); color: var(--text-main); background: rgba(255, 64, 129, 0.2); display:flex; align-items:center; gap: 4px;" title="Запланировать">
                                         <ion-icon name="calendar-outline"></ion-icon> В План
