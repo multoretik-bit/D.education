@@ -328,7 +328,9 @@ function getTasksForDate(dateStr) {
                     const isDuplicate = allTasks.some(existing => 
                         existing.id === taskObj.id && existing.startTime === taskObj.startTime
                     );
-                    if (!isDuplicate) allTasks.push(taskObj);
+                    if (!isDuplicate) {
+                        allTasks.push({ ...taskObj, originalDate: pastDateStr }); // Save original date for deletion
+                    }
                 }
             });
         }
@@ -366,12 +368,30 @@ function renderScheduledTasks(dateStr) {
          <div class="structured-task ${task.type === 'course' ? 'is-course' : ''} ${task.recurring ? 'recurring-badge' : ''}" onclick="${action}">
              <div class="task-meta">
                 <span><ion-icon name="time-outline"></ion-icon> ${task.startTime} (${task.duration} мин)</span>
-                <span>${task.recurring ? 'Повтор' : ''}</span>
+                <ion-icon name="trash-outline" class="delete-task-icon" onclick="event.stopPropagation(); deleteTaskFromSchedule('${task.originalDate || dateStr}', '${task.id}', '${task.startTime}')" title="Удалить из плана"></ion-icon>
              </div>
              <span class="task-name">${title}</span>
          </div>
        `;
     }).join('');
+}
+
+async function deleteTaskFromSchedule(dateStr, taskId, startTime) {
+    if (!confirm('Вы уверены, что хотите удалить этот урок из плана?')) return;
+    
+    if (userProgress.schedule[dateStr]) {
+        userProgress.schedule[dateStr] = userProgress.schedule[dateStr].filter(t => {
+            if (typeof t === 'string') return t !== taskId;
+            return !(t.id === taskId && t.startTime === startTime);
+        });
+        
+        if (userProgress.schedule[dateStr].length === 0) {
+            delete userProgress.schedule[dateStr];
+        }
+        
+        await saveProgressToCloud();
+        renderDashboard();
+    }
 }
 
 // Modal functions
