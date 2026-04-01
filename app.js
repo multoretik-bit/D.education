@@ -161,6 +161,11 @@ function openCreateCourseModal() {
     const modal = document.getElementById('create-course-modal');
     modal.classList.remove('hidden');
     document.getElementById('course-title-input').value = '';
+    document.getElementById('course-photo-input').value = '';
+    document.getElementById('course-icon-input').value = 'school-outline';
+    document.getElementById('edit-course-id').value = '';
+    document.querySelector('#create-course-modal h3').innerHTML = '<ion-icon name="add-circle-outline"></ion-icon> Новый курс';
+    document.getElementById('save-course-btn').innerText = 'Создать курс';
     document.getElementById('course-title-input').focus();
 }
 
@@ -170,21 +175,51 @@ function closeCreateCourseModal() {
 
 async function saveCustomCourse() {
     const title = document.getElementById('course-title-input').value.trim();
+    const photo = document.getElementById('course-photo-input').value.trim();
     const icon = document.getElementById('course-icon-input').value.trim() || 'school-outline';
+    const editId = document.getElementById('edit-course-id').value;
+    
     if (!title) return alert('Введите название курса');
 
-    const id = 'user_area_' + Date.now();
-    userProgress.customAreas[id] = {
-        id: id,
-        title: title,
-        icon: icon,
-        subsystems: []
-    };
+    if (editId) {
+        // Edit Mode
+        const area = userProgress.customAreas[editId];
+        if (area) {
+            area.title = title;
+            area.imageUrl = photo;
+            area.icon = icon;
+        }
+    } else {
+        // Create Mode
+        const id = 'user_area_' + Date.now();
+        userProgress.customAreas[id] = {
+            id: id,
+            title: title,
+            icon: icon,
+            imageUrl: photo,
+            subsystems: []
+        };
+    }
 
     injectCustomCourse();
     await saveProgressToCloud();
     closeCreateCourseModal();
     renderAreas();
+}
+
+function openEditCourseModal(areaId) {
+    const area = userProgress.customAreas[areaId];
+    if (!area) return;
+
+    const modal = document.getElementById('create-course-modal');
+    modal.classList.remove('hidden');
+    
+    document.getElementById('edit-course-id').value = areaId;
+    document.getElementById('course-title-input').value = area.title;
+    document.getElementById('course-photo-input').value = area.imageUrl || '';
+    document.getElementById('course-icon-input').value = area.icon || 'school-outline';
+    document.querySelector('#create-course-modal h3').innerHTML = '<ion-icon name="create-outline"></ion-icon> Редактировать курс';
+    document.getElementById('save-course-btn').innerText = 'Сохранить изменения';
 }
 
 function openCreateChapterModal(areaId) {
@@ -333,6 +368,21 @@ window.onload = async () => {
         await loadProgressFromCloud();
         renderDashboard();
     }
+    
+    // Auto-refresh Dashboard every minute for LIVE progress
+    setInterval(() => {
+        if (currentView === 'dashboard') {
+            const todayCol = document.querySelector('.current-day .day-tasks');
+            if (todayCol) {
+                const now = new Date();
+                const y = now.getFullYear();
+                const m = String(now.getMonth() + 1).padStart(2, '0');
+                const d = String(now.getDate()).padStart(2, '0');
+                const todayStr = `${y}-${m}-${d}`;
+                todayCol.innerHTML = renderScheduledTasks(todayStr);
+            }
+        }
+    }, 60000);
 };
 
 // --- NAVIGATION & RENDERING ---
@@ -498,6 +548,27 @@ function getTasksForDate(dateStr) {
     return allTasks.sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
+function getLiveStatus(task, dateStr) {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    if (dateStr !== todayStr) return null;
+
+    const [h, m] = task.startTime.split(':').map(Number);
+    const start = new Date(now);
+    start.setHours(h, m, 0, 0);
+    
+    const end = new Date(start);
+    end.setMinutes(start.getMinutes() + task.duration);
+
+    if (now >= start && now < end) {
+        const elapsed = (now - start) / 1000 / 60;
+        const progress = (elapsed / task.duration) * 100;
+        const minutesLeft = Math.ceil((end - now) / 1000 / 60);
+        return { progress, minutesLeft };
+    }
+    return null;
+}
+
 function renderScheduledTasks(dateStr) {
     const list = getTasksForDate(dateStr);
     if (list.length === 0) return `<div style="text-align:center; color:rgba(255,255,255,0.1); margin-top:20px; font-size:0.8rem;">Дисциплина — это свобода.<br>Запланируй свой блок.</div>`;
@@ -505,30 +576,34 @@ function renderScheduledTasks(dateStr) {
     return list.map(task => {
         let title = "Урок";
         let icon = "book";
-        let color = "var(--primary)";
         let action = `startLesson('${task.id}')`;
 
         if (task.type === 'course') {
             const area = KNOWLEDGE_BASE.areas.find(a => a.id === task.id);
             title = area ? area.title : "Курс";
             icon = area ? area.icon : "school";
-            color = "var(--secondary)";
             action = `renderSubsystems('${task.id}')`;
         } else {
             const lesson = KNOWLEDGE_BASE.lessons[task.id];
             if (lesson) title = lesson.title;
         }
 
-        const isToday = dateStr === new Date().toISOString().split('T')[0];
-        const status = "⏳"; // Simple placeholder
+        const live = getLiveStatus(task, dateStr);
+        const liveClass = live ? 'is-live' : '';
 
         return `
-         <div class="structured-task ${task.type === 'course' ? 'is-course' : ''} ${task.recurring ? 'recurring-badge' : ''}" onclick="${action}">
+         <div class="structured-task ${task.type === 'course' ? 'is-course' : ''} ${task.recurring ? 'recurring-badge' : ''} ${liveClass}" onclick="${action}">
              <div class="task-meta">
                 <span><ion-icon name="time-outline"></ion-icon> ${task.startTime} (${task.duration} мин)</span>
                 <ion-icon name="trash-outline" class="delete-task-icon" onclick="event.stopPropagation(); deleteTaskFromSchedule('${task.originalDate || dateStr}', '${task.id}', '${task.startTime}')" title="Удалить из плана"></ion-icon>
              </div>
              <span class="task-name">${title}</span>
+             ${live ? `
+                <div class="live-progress-container">
+                    <div class="live-progress-fill" style="width: ${live.progress}%"></div>
+                </div>
+                <span class="live-time-left">Осталось ${live.minutesLeft} мин</span>
+             ` : ''}
          </div>
        `;
     }).join('');
@@ -872,10 +947,18 @@ function renderAreas() {
             <p style="color: var(--text-secondary);">Выберите область для изучения.</p>
         </header>
         <div class="grid fade-in">
-            ${areasWithProgress.map(data => `
-                <div class="area-card" onclick="renderSubsystems('${data.area.id}')" style="position: relative;">
-                    ${data.passed > 0 ? `<div style="position: absolute; top: 10px; right: 10px; background: rgba(255, 64, 129, 0.15); color: var(--primary); padding: 4px 8px; border-radius: 8px; font-size: 0.8rem; font-weight: bold; border: 1px solid rgba(255, 64, 129, 0.3);">🔥 В процессе</div>` : ''}
-                    <ion-icon name="${data.area.icon}" style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem;"></ion-icon>
+            ${areasWithProgress.map(data => {
+                const isCustom = userProgress.customAreas[data.area.id] !== undefined;
+                const areaClass = isCustom ? 'is-custom' : 'is-default';
+                const avatar = data.area.imageUrl ? 
+                    `<img src="${data.area.imageUrl}" class="course-avatar" onerror="this.src='https://via.placeholder.com/60?text=Course'">` : 
+                    `<ion-icon name="${data.area.icon}" style="font-size: 3rem; margin-bottom: 1rem;"></ion-icon>`;
+
+                return `
+                <div class="area-card ${areaClass}" onclick="renderSubsystems('${data.area.id}')" style="position: relative;">
+                    ${isCustom ? `<ion-icon name="create-outline" class="edit-course-btn" onclick="event.stopPropagation(); openEditCourseModal('${data.area.id}')"></ion-icon>` : ''}
+                    ${data.passed > 0 ? `<div style="position: absolute; top: 10px; right: ${isCustom ? '40px' : '10px'}; background: rgba(255, 64, 129, 0.15); color: var(--primary); padding: 4px 8px; border-radius: 8px; font-size: 0.8rem; font-weight: bold; border: 1px solid rgba(255, 64, 129, 0.3);">🔥 Процесс</div>` : ''}
+                    ${avatar}
                     <h2>${data.area.title}</h2>
                     <p style="color: var(--text-secondary); margin-top: 0.5rem;">${data.area.subsystems.length} разделов</p>
                     
@@ -886,12 +969,12 @@ function renderAreas() {
                                 <span style="color: var(--primary);">${data.percent}%</span>
                             </div>
                             <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
-                                <div style="width: ${data.percent}%; height: 100%; background: var(--primary);"></div>
+                                <div style="width: ${data.percent}%; height: 100%;" class="progress-bar-fill"></div>
                             </div>
                         </div>
                     ` : ''}
                 </div>
-            `).join('')}
+            `;}).join('')}
         </div>
     `;
 }

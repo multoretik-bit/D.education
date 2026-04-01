@@ -68,15 +68,20 @@
                 <ion-icon name="close" onclick="closeCreateCourseModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
             </header>
             <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <input type="hidden" id="edit-course-id" value="">
                 <div>
                     <label class="modal-label">Название вашего курса</label>
                     <input type="text" id="course-title-input" class="check-input" style="margin-top: 0;" placeholder="Например: Мой Английский">
                 </div>
                 <div>
+                    <label class="modal-label">Ссылка на фото (URL)</label>
+                    <input type="text" id="course-photo-input" class="check-input" style="margin-top: 0;" placeholder="Вставьте ссылку на картинку...">
+                </div>
+                <div>
                     <label class="modal-label">Иконка (название IonIcon)</label>
                     <input type="text" id="course-icon-input" class="check-input" style="margin-top: 0;" value="school-outline" placeholder="book-outline, fitness-outline...">
                 </div>
-                <button class="btn btn-primary" onclick="saveCustomCourse()">Создать курс</button>
+                <button class="btn btn-primary" id="save-course-btn" onclick="saveCustomCourse()">Создать курс</button>
             </div>
         </div>
     </div>
