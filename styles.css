@@ -438,3 +438,138 @@ main {
 .search-result-item:hover {
     background: rgba(255,255,255,0.1);
 }
+/* NEW STRUCTURED SCHEDULE STYLES */
+.study-block-container {
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    min-height: 150px;
+    position: relative;
+}
+
+.study-block-header {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    padding-bottom: 4px;
+}
+
+.time-slot-marker {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    border-top: 1px dashed rgba(255, 255, 255, 0.03);
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.2);
+    padding-left: 5px;
+    pointer-events: none;
+}
+
+.structured-task {
+    background: linear-gradient(135deg, rgba(255, 64, 129, 0.1), rgba(255, 64, 129, 0.05));
+    border: 1px solid rgba(255, 64, 129, 0.2);
+    border-left: 4px solid var(--primary);
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.structured-task:hover {
+    background: rgba(255, 64, 129, 0.15);
+    border-color: var(--primary);
+    transform: translateX(2px);
+}
+
+.structured-task .task-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.structured-task .task-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.structured-task.is-course {
+    border-left-color: var(--secondary);
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.1), rgba(0, 229, 255, 0.05));
+    border-color: rgba(0, 229, 255, 0.2);
+}
+
+.structured-task.recurring-badge::after {
+    content: '🔄';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 0.7rem;
+    opacity: 0.6;
+}
+
+/* Modal Enhancements */
+.modal-form-group {
+    margin-bottom: 1.25rem;
+}
+
+.modal-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.modal-row {
+    display: flex;
+    gap: 15px;
+}
+
+.modal-row > div {
+    flex: 1;
+}
+
+.time-input, .number-input {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-main);
+    padding: 8px 12px;
+    border-radius: 6px;
+    outline: none;
+}
+
+.time-input:focus, .number-input:focus {
+    border-color: var(--primary);
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.checkbox-group input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}

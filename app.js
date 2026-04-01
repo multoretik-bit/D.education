@@ -223,27 +223,56 @@ function renderDashboard() {
                <span class="day-name">${daysOfWeek[i]}</span>
                <span class="day-date">${dateIter.getDate()} ${getMonthName(dateIter.getMonth())}</span>
            </div>
-           <div class="day-tasks">
-               ${renderScheduledTasks(dateStr)}
+           
+           <div class="study-block-container">
+               <div class="study-block-header">
+                    <span><ion-icon name="time-outline"></ion-icon> 19:00 - 22:00</span>
+               </div>
+               <div class="day-tasks">
+                   ${renderScheduledTasks(dateStr)}
+               </div>
            </div>
-           <button class="add-task-btn" onclick="openScheduleModal('${dateStr}', '${daysOfWeek[i]}, ${dateIter.getDate()} ${getMonthName(dateIter.getMonth())}')"><ion-icon name="add-outline"></ion-icon> План</button>
+
+           <button class="add-task-btn" style="margin-top: auto;" onclick="openScheduleModal('${dateStr}', '${daysOfWeek[i]}, ${dateIter.getDate()} ${getMonthName(dateIter.getMonth())}')">
+                <ion-icon name="add-outline"></ion-icon> Добавить в план
+           </button>
        </div>
      `;
     }
     calendarHtml += `</div>
      <!-- Modal Template -->
      <div id="schedule-modal" class="modal-overlay hidden">
-         <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column;">
+         <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column; width: 600px;">
              <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1rem; flex-shrink: 0;">
                 <h3 style="color:var(--primary); font-size: 1.2rem;"><ion-icon name="calendar-outline"></ion-icon> План: <span id="modal-date-display" style="color: var(--text-main);">...</span></h3>
                 <ion-icon name="close" onclick="closeScheduleModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
              </header>
-             <p style="color:var(--text-secondary); margin-bottom: 1rem; font-size:0.9rem; flex-shrink: 0;">Выберите уроки для добавления в ваш учебный день:</p>
+             
+             <!-- SETTINGS FOR THE NEW TASK -->
+             <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
+                <div class="modal-row" style="margin-bottom: 10px;">
+                    <div>
+                        <label class="modal-label">Начало (19:00 - 22:00)</label>
+                        <input type="time" id="modal-task-time" class="time-input" value="19:00">
+                    </div>
+                    <div>
+                        <label class="modal-label">Длительность (мин)</label>
+                        <input type="number" id="modal-task-duration" class="number-input" value="60" min="5" max="180">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="modal-task-recurring"> Повторять каждую неделю
+                    </label>
+                </div>
+             </div>
+
+             <p style="color:var(--text-secondary); margin-bottom: 1rem; font-size:0.9rem; flex-shrink: 0;">Выберите Курс или Урок для добавления:</p>
              
              <!-- TABS -->
              <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-shrink: 0;">
-                <button class="btn btn-primary" id="btn-tab-browse" onclick="switchModalTab('browse')" style="flex:1; padding: 0.5rem; font-size: 0.9rem; border-radius: 8px;">📚 Из Каталога Глав</button>
-                <button class="btn" id="btn-tab-search" onclick="switchModalTab('search')" style="flex:1; padding: 0.5rem; font-size: 0.9rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: 8px;">🔍 Поиск текстом</button>
+                <button class="btn btn-primary" id="btn-tab-browse" onclick="switchModalTab('browse')" style="flex:1; padding: 0.5rem; font-size: 0.9rem; border-radius: 8px;">📚 Каталог</button>
+                <button class="btn" id="btn-tab-search" onclick="switchModalTab('search')" style="flex:1; padding: 0.5rem; font-size: 0.9rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: 8px;">🔍 Поиск</button>
              </div>
 
              <!-- CONTENT AREAS -->
@@ -252,7 +281,7 @@ function renderDashboard() {
              </div>
 
              <div id="modal-tab-search" class="hidden" style="flex-grow: 1; display:flex; flex-direction:column;">
-                 <input type="text" id="modal-search" class="check-input" style="margin-top:0; flex-shrink: 0; padding: 0.75rem;" placeholder="Поиск (например: крипта, кредит, риск...)" onkeyup="handleModalSearch(this.value)">
+                 <input type="text" id="modal-search" class="check-input" style="margin-top:0; flex-shrink: 0; padding: 0.75rem;" placeholder="Название урока или курса..." onkeyup="handleModalSearch(this.value)">
                  <div id="modal-search-results" style="margin-top: 1rem; overflow-y:auto; flex-grow: 1;"></div>
              </div>
              
@@ -270,24 +299,76 @@ function renderDashboard() {
   `;
 }
 
-function renderScheduledTasks(dateStr) {
-    const list = userProgress.schedule[dateStr] || [];
-    if (list.length === 0) return '';
-    return list.map(id => {
-        const lesson = KNOWLEDGE_BASE.lessons[id];
-        if (!lesson) return '';
+function getTasksForDate(dateStr) {
+    const requestedDate = new Date(dateStr);
+    const dayOfWeek = requestedDate.getDay(); 
+    let allTasks = [];
 
-        const p = userProgress.lessons[id];
-        let isPassedOnThisDate = false;
-        if (p && p.lastPassed) {
-            const passedDateStr = new Date(p.lastPassed).toISOString().split('T')[0];
-            if (passedDateStr >= dateStr) isPassedOnThisDate = true;
+    // 1. Get explicit tasks for this date
+    const directTasks = userProgress.schedule[dateStr] || [];
+    allTasks = [...directTasks.map(t => {
+        if (typeof t === 'string') return { id: t, type: 'lesson', startTime: '19:00', duration: 60, recurring: false };
+        return t;
+    })];
+
+    // 2. Get recurring tasks from OTHER dates
+    Object.keys(userProgress.schedule).forEach(pastDateStr => {
+        if (pastDateStr === dateStr) return; // Already handled
+        
+        const pastDate = new Date(pastDateStr);
+        if (pastDate > requestedDate) return; // Future tasks don't recur backwards
+
+        // Same day of week check
+        if (pastDate.getDay() === dayOfWeek) {
+            const tasks = userProgress.schedule[pastDateStr];
+            tasks.forEach(t => {
+                const taskObj = typeof t === 'string' ? { id: t, type: 'lesson', startTime: '19:00', duration: 60, recurring: false } : t;
+                if (taskObj.recurring) {
+                    // Check if we already have this lesson/course at this time (to avoid duplicates)
+                    const isDuplicate = allTasks.some(existing => 
+                        existing.id === taskObj.id && existing.startTime === taskObj.startTime
+                    );
+                    if (!isDuplicate) allTasks.push(taskObj);
+                }
+            });
+        }
+    });
+
+    // Sort by startTime
+    return allTasks.sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+
+function renderScheduledTasks(dateStr) {
+    const list = getTasksForDate(dateStr);
+    if (list.length === 0) return `<div style="text-align:center; color:rgba(255,255,255,0.1); margin-top:20px; font-size:0.8rem;">Дисциплина — это свобода.<br>Запланируй свой блок.</div>`;
+    
+    return list.map(task => {
+        let title = "Урок";
+        let icon = "book";
+        let color = "var(--primary)";
+        let action = `startLesson('${task.id}')`;
+
+        if (task.type === 'course') {
+            const area = KNOWLEDGE_BASE.areas.find(a => a.id === task.id);
+            title = area ? area.title : "Курс";
+            icon = area ? area.icon : "school";
+            color = "var(--secondary)";
+            action = `renderSubsystems('${task.id}')`;
+        } else {
+            const lesson = KNOWLEDGE_BASE.lessons[task.id];
+            if (lesson) title = lesson.title;
         }
 
+        const isToday = dateStr === new Date().toISOString().split('T')[0];
+        const status = "⏳"; // Simple placeholder
+
         return `
-         <div class="task-pill ${isPassedOnThisDate ? 'task-done' : 'task-pending'}" onclick="startLesson('${id}')">
-             <span class="task-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${lesson.title}</span>
-             <span class="task-icon">${isPassedOnThisDate ? '✅' : '⏳'}</span>
+         <div class="structured-task ${task.type === 'course' ? 'is-course' : ''} ${task.recurring ? 'recurring-badge' : ''}" onclick="${action}">
+             <div class="task-meta">
+                <span><ion-icon name="time-outline"></ion-icon> ${task.startTime} (${task.duration} мин)</span>
+                <span>${task.recurring ? 'Повтор' : ''}</span>
+             </div>
+             <span class="task-name">${title}</span>
          </div>
        `;
     }).join('');
@@ -355,7 +436,7 @@ function renderModalBrowserTree() {
                     if (!lesson) return;
                     html += `
                     <div class="search-result-item" style="padding: 8px 10px; margin-bottom: 4px; font-size: 0.85rem; border-radius: 6px; background: rgba(0,0,0,0.2);">
-                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width: 80%;">${lesson.title}</span>
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width: 65%;">${lesson.title}</span>
                         <button class="btn" title="Добавить на этот день" onclick="addLessonToSchedule('${lId}')" style="padding: 4px 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); display:flex; align-items:center; gap:4px; font-size:0.8rem; border-radius: 4px;">
                             <ion-icon name="add"></ion-icon> План
                         </button>
@@ -366,6 +447,16 @@ function renderModalBrowserTree() {
 
             html += `</div></div>`;
         });
+        
+        // ADD OPTION TO ADD THE WHOLE AREA
+        html += `
+        <div class="search-result-item" style="background: rgba(0, 229, 255, 0.05); border: 1px dashed var(--secondary); margin-top: -10px; margin-bottom: 20px;">
+            <span style="color: var(--secondary); font-weight: bold;">Весь курс: ${area.title}</span>
+            <button class="btn" onclick="addCourseToSchedule('${area.id}')" style="padding: 4px 10px; background: var(--secondary); color: black; border: none; display:flex; align-items:center; gap:4px; font-size:0.8rem; border-radius: 4px;">
+                <ion-icon name="calendar"></ion-icon> В план
+            </button>
+        </div>
+        `;
     });
 
     container.innerHTML = html;
@@ -408,22 +499,49 @@ function handleModalSearch(query) {
         return;
     }
 
-    const results = Object.values(KNOWLEDGE_BASE.lessons).filter(l =>
-        l.title.toLowerCase().includes(query) ||
-        Math.random() > 0.99 // Fallback
+    // Search Lessons
+    const lessons = Object.entries(KNOWLEDGE_BASE.lessons).filter(([id, l]) =>
+        l.title.toLowerCase().includes(query)
     ).slice(0, 10);
 
-    if (results.length === 0) {
+    // Search Courses (Areas)
+    const areas = KNOWLEDGE_BASE.areas.filter(a => 
+        a.title.toLowerCase().includes(query)
+    );
+
+    if (lessons.length === 0 && areas.length === 0) {
         resultsContainer.innerHTML = '<p style="color:var(--text-secondary);">Ничего не найдено</p>';
         return;
     }
 
-    resultsContainer.innerHTML = results.map(l => `
-        <div class="search-result-item" onclick="addLessonToSchedule('${l.id}')">
-            <span>${l.title}</span>
-            <ion-icon name="add-circle" style="color:var(--primary); font-size:1.2rem;"></ion-icon>
-        </div>
-    `).join('');
+    let html = '';
+    
+    areas.forEach(a => {
+        html += `
+            <div class="search-result-item" style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2);">
+                <div style="display:flex; flex-direction:column;">
+                    <span style="font-weight:bold; color:var(--secondary);">Курс: ${a.title}</span>
+                    <span style="font-size:0.7rem; color:var(--text-secondary);">Весь блок обучения</span>
+                </div>
+                <button class="btn" onclick="addCourseToSchedule('${a.id}')" style="padding: 4px 10px; background: var(--secondary); color: black; border: none; font-size:0.8rem; border-radius: 4px;">
+                    <ion-icon name="add"></ion-icon> План
+                </button>
+            </div>
+        `;
+    });
+
+    lessons.forEach(([id, l]) => {
+        html += `
+            <div class="search-result-item">
+                <span>${l.title}</span>
+                <button class="btn" onclick="addLessonToSchedule('${id}')" style="padding: 4px 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); font-size:0.8rem; border-radius: 4px;">
+                    <ion-icon name="add"></ion-icon> План
+                </button>
+            </div>
+        `;
+    });
+
+    resultsContainer.innerHTML = html;
 }
 
 // Global Day Picker UI for Catalog Scheduling
@@ -489,13 +607,45 @@ async function scheduleFromPicker(lessonId, dateStr) {
 
 async function addLessonToSchedule(lessonId) {
     const dateStr = document.getElementById('modal-active-date').value;
+    const startTime = document.getElementById('modal-task-time').value || '19:00';
+    const duration = parseInt(document.getElementById('modal-task-duration').value) || 60;
+    const recurring = document.getElementById('modal-task-recurring').checked;
+
     if (!userProgress.schedule[dateStr]) userProgress.schedule[dateStr] = [];
 
-    if (!userProgress.schedule[dateStr].includes(lessonId)) {
-        userProgress.schedule[dateStr].push(lessonId);
-        await saveProgressToCloud();
-        renderDashboard();
-    }
+    const taskObj = {
+        id: lessonId,
+        type: 'lesson',
+        startTime: startTime,
+        duration: duration,
+        recurring: recurring
+    };
+
+    userProgress.schedule[dateStr].push(taskObj);
+    await saveProgressToCloud();
+    renderDashboard();
+    closeScheduleModal();
+}
+
+async function addCourseToSchedule(courseId) {
+    const dateStr = document.getElementById('modal-active-date').value;
+    const startTime = document.getElementById('modal-task-time').value || '19:00';
+    const duration = parseInt(document.getElementById('modal-task-duration').value) || 60;
+    const recurring = document.getElementById('modal-task-recurring').checked;
+
+    if (!userProgress.schedule[dateStr]) userProgress.schedule[dateStr] = [];
+
+    const taskObj = {
+        id: courseId,
+        type: 'course',
+        startTime: startTime,
+        duration: duration,
+        recurring: recurring
+    };
+
+    userProgress.schedule[dateStr].push(taskObj);
+    await saveProgressToCloud();
+    renderDashboard();
     closeScheduleModal();
 }
 
