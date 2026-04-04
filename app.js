@@ -960,6 +960,10 @@ function renderAreas() {
                     ${data.passed > 0 ? `<div style="position: absolute; top: 10px; right: ${isCustom ? '40px' : '10px'}; background: rgba(255, 64, 129, 0.15); color: var(--primary); padding: 4px 8px; border-radius: 8px; font-size: 0.8rem; font-weight: bold; border: 1px solid rgba(255, 64, 129, 0.3);">🔥 Процесс</div>` : ''}
                     ${avatar}
                     <h2>${data.area.title}</h2>
+                    ${(() => {
+                        const minM = getGroupMinMastery(data.area.subsystems.flatMap(sId => KNOWLEDGE_BASE.subsystems[sId] ? KNOWLEDGE_BASE.subsystems[sId].skills.flatMap(skId => KNOWLEDGE_BASE.skills[skId] ? KNOWLEDGE_BASE.skills[skId].lessons : []) : []));
+                        return minM > 0 ? `<div style="color: var(--secondary); font-weight: 800; font-size: 0.9rem; margin-bottom: 0.5rem;">(Пройдено ${minM}/4)</div>` : '';
+                    })()}
                     <p style="color: var(--text-secondary); margin-top: 0.5rem;">${data.area.subsystems.length} разделов</p>
                     
                     ${data.passed > 0 ? `
@@ -1007,7 +1011,13 @@ function renderSubsystems(areaId) {
         return `
                     <div class="subsystem-card" onclick="renderSkills('${sub.id}')">
                         <div>
-                            <h3 style="font-size: 1.25rem;">${sub.title}</h3>
+                            <h3 style="font-size: 1.25rem;">
+                                ${sub.title} 
+                                ${(() => {
+                                    const minM = getGroupMinMastery(sub.skills.flatMap(skId => KNOWLEDGE_BASE.skills[skId] ? KNOWLEDGE_BASE.skills[skId].lessons : []));
+                                    return minM > 0 ? `<span style="color: var(--secondary); font-size: 0.9rem; margin-left: 8px;">(Пройдено ${minM}/4)</span>` : '';
+                                })()}
+                            </h3>
                             <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">${sub.skills.length} навыков</p>
                         </div>
                         <ion-icon name="chevron-forward-outline" style="font-size: 1.5rem; color: var(--text-secondary);"></ion-icon>
@@ -1404,6 +1414,15 @@ function renderCheckScreen(check) {
     `;
 }
 
+function getGroupMinMastery(lessonIds) {
+    if (!lessonIds || lessonIds.length === 0) return 0;
+    const masteries = lessonIds.map(id => {
+        const progress = userProgress.lessons[id];
+        return progress ? progress.masteryLevel : 0;
+    });
+    return Math.min(...masteries);
+}
+
 async function finishLesson() {
     const { lessonId } = currentLessonState;
     const lesson = KNOWLEDGE_BASE.lessons[lessonId];
@@ -1431,16 +1450,8 @@ async function finishLesson() {
         nextDate.setDate(nextDate.getDate() + currentIntervalDays);
         lessonProgress.nextReview = nextDate.getTime();
 
-        // Auto-schedule it in the calendar for the future date
-        const y = nextDate.getFullYear();
-        const m = String(nextDate.getMonth() + 1).padStart(2, '0');
-        const d = String(nextDate.getDate()).padStart(2, '0');
-        const reviewDateStr = `${y}-${m}-${d}`;
-
-        if (!userProgress.schedule[reviewDateStr]) userProgress.schedule[reviewDateStr] = [];
-        if (!userProgress.schedule[reviewDateStr].includes(lessonId)) {
-            userProgress.schedule[reviewDateStr].push(lessonId);
-        }
+        // [AUTO-SCHEDULE REMOVED BY USER REQUEST]
+        // Only manual scheduling is allowed now.
     } else {
         lessonProgress.nextReview = 0; // Won't lock if level 4+ (mastered or last review)
     }
