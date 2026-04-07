@@ -72,6 +72,7 @@ async function loadProgressFromCloud() {
     if (!userProgress.customAreas) userProgress.customAreas = {};
     if (!userProgress.customSubsystems) userProgress.customSubsystems = {};
     if (!userProgress.customSkills) userProgress.customSkills = {};
+    if (!userProgress.completions) userProgress.completions = {};
     
     injectCustomCourse();
 }
@@ -600,14 +601,18 @@ function renderScheduledTasks(dateStr) {
             if (lesson) title = lesson.title;
         }
 
-        const live = getLiveStatus(task, dateStr);
-        const liveClass = live ? 'is-live' : '';
+        const taskKey = `${task.id}-${task.startTime}`;
+        const isCompleted = userProgress.completions[dateStr] && userProgress.completions[dateStr][taskKey];
+        const completeClass = isCompleted ? 'is-completed' : '';
 
         return `
-         <div class="structured-task ${task.type === 'course' ? 'is-course' : ''} ${task.recurring ? 'recurring-badge' : ''} ${liveClass}" onclick="${action}">
+         <div class="structured-task ${task.type === 'course' ? 'is-course' : ''} ${task.recurring ? 'recurring-badge' : ''} ${liveClass} ${completeClass}" onclick="${action}">
              <div class="task-meta">
                 <span><ion-icon name="time-outline"></ion-icon> ${task.startTime} (${task.duration} мин)</span>
-                <ion-icon name="trash-outline" class="delete-task-icon" onclick="event.stopPropagation(); deleteTaskFromSchedule('${task.originalDate || dateStr}', '${task.id}', '${task.startTime}')" title="Удалить из плана"></ion-icon>
+                <div style="display:flex; gap: 8px; align-items:center;">
+                    <ion-icon name="${isCompleted ? 'checkbox' : 'square-outline'}" class="complete-task-btn ${isCompleted ? 'active' : ''}" onclick="event.stopPropagation(); toggleTaskCompletion('${dateStr}', '${task.id}', '${task.startTime}')" title="${isCompleted ? 'Выполнено' : 'Отметить выполнение'}"></ion-icon>
+                    <ion-icon name="trash-outline" class="delete-task-icon" onclick="event.stopPropagation(); deleteTaskFromSchedule('${task.originalDate || dateStr}', '${task.id}', '${task.startTime}')" title="Удалить из плана"></ion-icon>
+                </div>
              </div>
              <span class="task-name">${title}</span>
              ${live ? `
@@ -634,9 +639,32 @@ async function deleteTaskFromSchedule(dateStr, taskId, startTime) {
             delete userProgress.schedule[dateStr];
         }
         
+        // Also cleanup completion for this task
+        const taskKey = `${taskId}-${startTime}`;
+        if (userProgress.completions[dateStr]) {
+            delete userProgress.completions[dateStr][taskKey];
+        }
+
         await saveProgressToCloud();
         renderDashboard();
     }
+}
+
+async function toggleTaskCompletion(dateStr, taskId, startTime) {
+    const taskKey = `${taskId}-${startTime}`;
+    
+    if (!userProgress.completions[dateStr]) {
+        userProgress.completions[dateStr] = {};
+    }
+    
+    if (userProgress.completions[dateStr][taskKey]) {
+        delete userProgress.completions[dateStr][taskKey];
+    } else {
+        userProgress.completions[dateStr][taskKey] = true;
+    }
+    
+    await saveProgressToCloud();
+    renderDashboard();
 }
 
 // Modal functions

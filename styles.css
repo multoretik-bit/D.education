@@ -602,6 +602,35 @@ main {
     color: var(--primary);
 }
 
+.complete-task-btn {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    padding: 2px;
+    border-radius: 4px;
+    transition: 0.2s;
+    cursor: pointer;
+}
+
+.complete-task-btn:hover {
+    color: var(--lvl-4);
+    background: rgba(51, 204, 51, 0.1);
+}
+
+.complete-task-btn.active {
+    color: var(--lvl-4);
+}
+
+.structured-task.is-completed {
+    border-left-color: var(--lvl-4) !important;
+    background: linear-gradient(135deg, rgba(51, 204, 51, 0.08), rgba(51, 204, 51, 0.03)) !important;
+    opacity: 0.8;
+}
+
+.structured-task.is-completed .task-name {
+    color: var(--text-secondary);
+    text-decoration: line-through;
+}
+
 /* LIVE STATUS */
 .structured-task.is-live {
     border-color: var(--primary);
