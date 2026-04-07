@@ -54,27 +54,34 @@ async function loadProgressFromCloud() {
         if (local) userProgress = { ...userProgress, ...local };
     }
 
-    // Ensure all required fields exist
-    if (!userProgress.schedule) userProgress.schedule = {};
-    
-    // [CLEANUP] Remove all existing lessons from schedule as requested
-    Object.keys(userProgress.schedule).forEach(date => {
-        userProgress.schedule[date] = userProgress.schedule[date].filter(task => {
-            // If it's a string, it's an old-style lesson ID
-            if (typeof task === 'string') return false;
-            // If it's a task object, filter by type
-            return task.type !== 'lesson';
+    try {
+        // Ensure all required fields exist
+        if (!userProgress.schedule) userProgress.schedule = {};
+        
+        // [CLEANUP] Remove all existing lessons from schedule as requested
+        Object.keys(userProgress.schedule).forEach(date => {
+            if (Array.isArray(userProgress.schedule[date])) {
+                userProgress.schedule[date] = userProgress.schedule[date].filter(task => {
+                    if (typeof task === 'string') return false; // Legacy string ID
+                    return task.type !== 'lesson';
+                });
+            } else {
+                // Legacy non-array format (was a string lesson ID)
+                userProgress.schedule[date] = [];
+            }
+            if (userProgress.schedule[date].length === 0) delete userProgress.schedule[date];
         });
-        if (userProgress.schedule[date].length === 0) delete userProgress.schedule[date];
-    });
 
-    if (!userProgress.customLessons) userProgress.customLessons = {};
-    if (!userProgress.customAreas) userProgress.customAreas = {};
-    if (!userProgress.customSubsystems) userProgress.customSubsystems = {};
-    if (!userProgress.customSkills) userProgress.customSkills = {};
-    if (!userProgress.completions) userProgress.completions = {};
-    
-    injectCustomCourse();
+        if (!userProgress.customLessons) userProgress.customLessons = {};
+        if (!userProgress.customAreas) userProgress.customAreas = {};
+        if (!userProgress.customSubsystems) userProgress.customSubsystems = {};
+        if (!userProgress.customSkills) userProgress.customSkills = {};
+        if (!userProgress.completions) userProgress.completions = {};
+        
+        injectCustomCourse();
+    } catch (err) {
+        console.error("Critical error during data migration:", err);
+    }
 }
 
 function injectCustomCourse() {
