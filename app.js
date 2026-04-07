@@ -56,6 +56,18 @@ async function loadProgressFromCloud() {
 
     // Ensure all required fields exist
     if (!userProgress.schedule) userProgress.schedule = {};
+    
+    // [CLEANUP] Remove all existing lessons from schedule as requested
+    Object.keys(userProgress.schedule).forEach(date => {
+        userProgress.schedule[date] = userProgress.schedule[date].filter(task => {
+            // If it's a string, it's an old-style lesson ID
+            if (typeof task === 'string') return false;
+            // If it's a task object, filter by type
+            return task.type !== 'lesson';
+        });
+        if (userProgress.schedule[date].length === 0) delete userProgress.schedule[date];
+    });
+
     if (!userProgress.customLessons) userProgress.customLessons = {};
     if (!userProgress.customAreas) userProgress.customAreas = {};
     if (!userProgress.customSubsystems) userProgress.customSubsystems = {};
@@ -570,7 +582,7 @@ function getLiveStatus(task, dateStr) {
 }
 
 function renderScheduledTasks(dateStr) {
-    const list = getTasksForDate(dateStr);
+    const list = getTasksForDate(dateStr).filter(task => task.type !== 'lesson');
     if (list.length === 0) return `<div style="text-align:center; color:rgba(255,255,255,0.1); margin-top:20px; font-size:0.8rem;">Дисциплина — это свобода.<br>Запланируй свой блок.</div>`;
     
     return list.map(task => {
@@ -690,9 +702,6 @@ function renderModalBrowserTree() {
                     html += `
                     <div class="search-result-item" style="padding: 8px 10px; margin-bottom: 4px; font-size: 0.85rem; border-radius: 6px; background: rgba(0,0,0,0.2);">
                         <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width: 65%;">${lesson.title}</span>
-                        <button class="btn" title="Добавить на этот день" onclick="addLessonToSchedule('${lId}')" style="padding: 4px 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); display:flex; align-items:center; gap:4px; font-size:0.8rem; border-radius: 4px;">
-                            <ion-icon name="add"></ion-icon> План
-                        </button>
                     </div>
                     `;
                 });
@@ -787,9 +796,6 @@ function handleModalSearch(query) {
         html += `
             <div class="search-result-item">
                 <span>${l.title}</span>
-                <button class="btn" onclick="addLessonToSchedule('${id}')" style="padding: 4px 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); font-size:0.8rem; border-radius: 4px;">
-                    <ion-icon name="add"></ion-icon> План
-                </button>
             </div>
         `;
     });
@@ -1084,19 +1090,12 @@ function renderLessonsList(skillId) {
         const lesson = KNOWLEDGE_BASE.lessons[lessonId];
         if (!lesson) return '';
 
-        const progress = userProgress.lessons[lessonId] || { masteryLevel: 0, nextReview: 0 };
-        const isLocked = progress.nextReview > Date.now();
+        const progress = userProgress.lessons[lessonId] || { masteryLevel: 0 };
         const mastery = progress.masteryLevel;
         const isUserLesson = userProgress.customLessons[lessonId] !== undefined;
 
-        let lockMsg = "";
-        if (isLocked) {
-            const hoursLeft = Math.ceil((progress.nextReview - Date.now()) / (1000 * 60 * 60));
-            lockMsg = hoursLeft > 24 ? `${Math.ceil(hoursLeft / 24)}д` : `${hoursLeft}ч`;
-        }
-
         return `
-                    <div class="micro-lesson-card ${isLocked ? 'lesson-locked' : ''}">
+                    <div class="micro-lesson-card">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                             <span class="badge-srs" style="background: var(--lvl-${mastery || 1});">Ур. ${mastery}/4</span>
                             <div style="display:flex; align-items:center; gap: 8px;">
