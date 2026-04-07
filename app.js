@@ -1153,7 +1153,7 @@ function renderLessonsList(skillId) {
                                 ` : ''}
                             </div>
                         </div>
-                        <div onclick="${isLocked ? '' : `startLesson('${lessonId}')`}" style="margin-top: 10px;">
+                        <div onclick="startLesson('${lessonId}')" style="margin-top: 10px;">
                             <h3>${lesson.title}</h3>
                             <div class="progress-bar-container">
                                 <div class="progress-bar-fill" style="width: ${mastery * 25}%; background: var(--lvl-${mastery || 1});"></div>
