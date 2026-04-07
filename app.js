@@ -608,6 +608,8 @@ function renderScheduledTasks(dateStr) {
             if (lesson) title = lesson.title;
         }
 
+        const live = getLiveStatus(task, dateStr);
+        const liveClass = live ? 'is-live' : '';
         const taskKey = `${task.id}-${task.startTime}`;
         const isCompleted = userProgress.completions[dateStr] && userProgress.completions[dateStr][taskKey];
         const completeClass = isCompleted ? 'is-completed' : '';
