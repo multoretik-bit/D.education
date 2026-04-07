@@ -1103,6 +1103,7 @@ function renderSkills(subsystemId) {
 
 function renderLessonsList(skillId) {
     const skill = KNOWLEDGE_BASE.skills[skillId];
+    if (!skill) return;
     const sub = KNOWLEDGE_BASE.subsystems[skill.subsystemId];
     const main = document.getElementById('main-content');
     const isCustomSkill = userProgress.customSkills[skillId] !== undefined || skillId === 'skill_custom';
@@ -1124,14 +1125,14 @@ function renderLessonsList(skillId) {
                 </div>
             ` : ''}
             ${skill.lessons.map(lessonId => {
-        const lesson = KNOWLEDGE_BASE.lessons[lessonId];
-        if (!lesson) return '';
+                const lesson = KNOWLEDGE_BASE.lessons[lessonId];
+                if (!lesson) return '';
 
-        const progress = userProgress.lessons[lessonId] || { masteryLevel: 0 };
-        const mastery = progress.masteryLevel;
-        const isUserLesson = userProgress.customLessons[lessonId] !== undefined;
+                const progress = userProgress.lessons[lessonId] || { masteryLevel: 0 };
+                const mastery = progress.masteryLevel;
+                const isUserLesson = userProgress.customLessons[lessonId] !== undefined;
 
-        return `
+                return `
                     <div class="micro-lesson-card">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                             <span class="badge-srs" style="background: var(--lvl-${mastery || 1});">Ур. ${mastery}/4</span>
@@ -1141,14 +1142,7 @@ function renderLessonsList(skillId) {
                                         <ion-icon name="trash-outline"></ion-icon>
                                     </button>
                                 ` : ''}
-                                ${mastery < 4 && !isLocked ? `
-                                    <button onclick="openDayPickerModal('${lessonId}')" class="btn" style="padding: 2px 8px; font-size: 0.8rem; border: 1px solid var(--primary); color: var(--text-main); background: rgba(255, 64, 129, 0.2); display:flex; align-items:center; gap: 4px;" title="Запланировать">
-                                        <ion-icon name="calendar-outline"></ion-icon> В План
-                                    </button>
-                                ` : ''}
-                                ${isLocked ? `
-                                    <div class="lock-overlay" style="position:static; padding: 4px 8px; transform:none;"><ion-icon name="lock-closed"></ion-icon> ${lockMsg}</div>
-                                ` : mastery >= 4 ? `
+                                ${mastery >= 4 ? `
                                     <ion-icon name="checkmark-done-circle" style="color: var(--lvl-4); font-size: 1.5rem;"></ion-icon>
                                 ` : ''}
                             </div>
@@ -1282,16 +1276,13 @@ function renderSearchResults(query) {
     </header>
     <div class="grid fade-in">
         ${results.map(lesson => {
-        const progress = userProgress.lessons[lesson.id] || { masteryLevel: 0, nextReview: 0 };
-        const isLocked = progress.nextReview > Date.now();
+        const progress = userProgress.lessons[lesson.id] || { masteryLevel: 0 };
         return `
-                <div class="micro-lesson-card ${isLocked ? 'lesson-locked' : ''}" 
-                     onclick="${isLocked ? '' : `startLesson('${lesson.id}')`}">
+                <div class="micro-lesson-card" onclick="startLesson('${lesson.id}')">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <span class="badge-srs" style="background: var(--lvl-${progress.masteryLevel || 1});">
                             Ур. ${progress.masteryLevel}/4
                         </span>
-                        ${isLocked ? '<ion-icon name="lock-closed"></ion-icon>' : ''}
                     </div>
                     <h3>${lesson.title}</h3>
                 </div>
@@ -1507,7 +1498,7 @@ async function finishLesson() {
     renderDashboard(); // Render earlier so UI looks instantly loaded
 
     const nextMsg = lessonProgress.nextReview > 0
-        ? `Урок закинут в расписание через ${currentIntervalDays} дн. на повторение.`
+        ? `Прогресс сохранен. Не забудьте вручную добавить урок в план для повторения.`
         : "Урок полностью освоен! 🔥";
 
     setTimeout(() => {
