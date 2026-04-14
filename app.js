@@ -1866,12 +1866,12 @@ function renderAnkiTrainingScreen() {
                 <div class="anki-card-inner">
                     <div class="anki-card-front">
                         ${folder ? `<span class="anki-folder-badge">${folder.name}</span>` : ''}
+                        ${card.image ? `<img src="${card.image}" class="anki-card-image">` : ''}
                         <h3 style="color:var(--primary); margin-bottom: 1.5rem;">Вопрос:</h3>
                         <h2 style="font-size: 1.5rem;">${card.front}</h2>
                         <p style="margin-top: 2rem; color: var(--text-secondary); font-size: 0.8rem;">Нажмите, чтобы увидеть ответ</p>
                     </div>
                     <div class="anki-card-back">
-                        ${card.image ? `<img src="${card.image}" class="anki-card-image">` : ''}
                         <h3 style="color:var(--secondary); margin-bottom: 1.5rem;">Ответ:</h3>
                         <p style="font-size: 1.5rem;">${card.back}</p>
                     </div>
