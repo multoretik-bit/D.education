@@ -1564,6 +1564,8 @@ function openAnkiCardModal(areaId) {
     document.getElementById('anki-front-input').value = '';
     document.getElementById('anki-back-input').value = '';
     document.getElementById('anki-image-input').value = '';
+    document.getElementById('anki-image-file').value = '';
+    document.getElementById('anki-image-preview').style.display = 'none';
     
     document.querySelector('#anki-card-modal h3').innerHTML = '<ion-icon name="albums-outline"></ion-icon> Новая карточка';
     
@@ -1588,8 +1590,12 @@ async function saveAnkiCard() {
     const editId = document.getElementById('edit-anki-card-id').value;
     const front = document.getElementById('anki-front-input').value.trim();
     const back = document.getElementById('anki-back-input').value.trim();
-    const image = document.getElementById('anki-image-input').value.trim();
+    const urlImage = document.getElementById('anki-image-input').value.trim();
+    const previewImg = document.getElementById('anki-preview-img');
     const folderId = document.getElementById('anki-folder-select').value;
+    
+    // Choose the best image (preview contains Base64 or URL)
+    const image = (previewImg.src && previewImg.style.display !== 'none' && !previewImg.src.endsWith('index.html')) ? previewImg.src : urlImage;
 
     if (!front || !back) return alert('Заполните обе стороны карточки');
 
@@ -1635,7 +1641,15 @@ function openEditAnkiCardModal(cardId, areaId) {
     document.getElementById('edit-anki-card-id').value = cardId;
     document.getElementById('anki-front-input').value = card.front;
     document.getElementById('anki-back-input').value = card.back;
-    document.getElementById('anki-image-input').value = card.image || '';
+    document.getElementById('anki-image-input').value = (card.image && !card.image.startsWith('data:')) ? card.image : '';
+    document.getElementById('anki-image-file').value = '';
+    
+    if (card.image) {
+        document.getElementById('anki-image-preview').style.display = 'block';
+        document.getElementById('anki-preview-img').src = card.image;
+    } else {
+        document.getElementById('anki-image-preview').style.display = 'none';
+    }
     
     document.querySelector('#anki-card-modal h3').innerHTML = '<ion-icon name="create-outline"></ion-icon> Редактировать карточку';
     
@@ -1875,6 +1889,19 @@ function flipAnkiCard() {
     document.getElementById('anki-controls').classList.remove('hidden');
 }
 
+// --- IMAGE UPLOAD HELPER ---
+function handleAnkiImageUpload(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('anki-image-preview').style.display = 'block';
+            document.getElementById('anki-preview-img').src = e.target.result;
+            document.getElementById('anki-image-input').value = ''; // clear url if file selected
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
 async function submitAnkiFeedback(quality) {
     // Current card is always the first in queue
     const card = ankiTrainState.queue.shift();
@@ -1883,20 +1910,14 @@ async function submitAnkiFeedback(quality) {
     if (quality === 5) {
         // ЗНАЮ (Know)
         card.knowCount++;
-        if (card.knowCount < 3) {
-            // Move to end of queue for this session
-            ankiTrainState.queue.push(card);
-        }
-        // If knowCount >= 3, it's NOT pushed back, effectively finishing it
+        // In the new single-pass logic, we proceed to next card and ONLY save the count.
     } else if (quality === 3) {
         // СПОРНО (Debatable)
-        // Move to the middle of the queue
-        const mid = Math.floor(ankiTrainState.queue.length / 2);
-        ankiTrainState.queue.splice(mid, 0, card);
+        // Progress stays same, but we proceed to next card item.
     } else {
         // ПЛОХО (Poor)
-        // Move to the very start of the queue (next card)
-        ankiTrainState.queue.unshift(card);
+        // Reset mastery progress but proceed to next card in this session
+        card.knowCount = 0;
     }
 
     // Save progress to cloud

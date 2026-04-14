@@ -121,8 +121,17 @@
                     <input type="text" id="anki-back-input" class="check-input" style="margin-top: 0; min-height: auto;" placeholder="Например: 1918 или Apple">
                 </div>
                 <div>
-                    <label class="modal-label">Ссылка на картинку (URL - необязательно)</label>
-                    <input type="text" id="anki-image-input" class="check-input" style="margin-top: 0; min-height: auto;" placeholder="https://example.com/image.jpg">
+                    <label class="modal-label">Картинка (URL или Загрузить с устройства)</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="anki-image-input" class="check-input" style="margin-top: 0; min-height: auto; flex: 1;" placeholder="https://example.com/image.jpg">
+                        <label for="anki-image-file" class="btn" style="padding: 0.6rem; background: var(--secondary); margin-top: 0; min-height: auto; display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; box-shadow: none;">
+                            <ion-icon name="image-outline" style="font-size: 1.2rem;"></ion-icon>
+                        </label>
+                        <input type="file" id="anki-image-file" accept="image/*" style="display: none;" onchange="handleAnkiImageUpload(this)">
+                    </div>
+                    <div id="anki-image-preview" style="margin-top: 10px; display: none;">
+                        <img id="anki-preview-img" src="" style="max-width: 100%; max-height: 100px; border-radius: 8px;">
+                    </div>
                 </div>
                 <div>
                     <label class="modal-label">Папка</label>
