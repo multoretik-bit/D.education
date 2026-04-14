@@ -1785,16 +1785,25 @@ function renderAnkiFolderContents(folderId, areaId) {
 
         <div class="grid fade-in" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
             ${cards.map(c => {
-                const level = getAnkiCardLevel(c);
+                const progressPercent = (c.knowCount || 0) * 33.33;
                 return `
                     <div class="anki-mini-card">
                         <div class="anki-card-actions">
                             <ion-icon name="create-outline" class="anki-action-icon" style="color:var(--secondary);" onclick="event.stopPropagation(); openEditAnkiCardModal('${c.id}', '${areaId}')"></ion-icon>
                             <ion-icon name="trash-outline" class="anki-action-icon" style="color:var(--primary);" onclick="event.stopPropagation(); deleteAnkiCard('${c.id}', '${folderId}', '${areaId}')"></ion-icon>
                         </div>
-                        <span class="anki-level-badge" style="background: ${level.color};">${level.label}</span>
                         <div style="font-weight: 500; font-size: 1.1rem; color: var(--text-main); margin-top: 5px;">${c.front}</div>
                         <div style="font-size: 0.9rem; color: var(--text-secondary); font-style: italic;">${c.back.substring(0, 50)}${c.back.length > 50 ? '...' : ''}</div>
+                        
+                        <div style="margin-top: 10px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.7rem; color:var(--text-secondary);">
+                                <span>Прогресс</span>
+                                <span>${Math.round(progressPercent)}%</span>
+                            </div>
+                            <div class="anki-progress-container">
+                                <div class="anki-progress-fill" style="width: ${progressPercent}%;"></div>
+                            </div>
+                        </div>
                     </div>
                 `;
             }).join('') || '<p style="color: var(--text-secondary);">В этой папке пока нет карточек.</p>'}
@@ -1909,15 +1918,15 @@ async function submitAnkiFeedback(quality) {
 
     if (quality === 5) {
         // ЗНАЮ (Know)
-        card.knowCount++;
-        // In the new single-pass logic, we proceed to next card and ONLY save the count.
+        // Increment progress. We still cap at 3.
+        if (card.knowCount < 2) card.knowCount = 2; // Jump to 2/3 if it was lower
+        else card.knowCount = 3; 
     } else if (quality === 3) {
         // СПОРНО (Debatable)
-        // Progress stays same, but we proceed to next card item.
+        card.knowCount = 1; // Learned medium = 1/3
     } else {
         // ПЛОХО (Poor)
-        // Reset mastery progress but proceed to next card in this session
-        card.knowCount = 0;
+        card.knowCount = 0; // Poorly = empty
     }
 
     // Save progress to cloud
