@@ -29,7 +29,7 @@ let currentLessonState = {
 
 let ankiTrainState = {
     areaId: null,
-    cards: [],
+    queue: [],
     currentIndex: 0
 };
 
@@ -87,6 +87,11 @@ async function loadProgressFromCloud() {
         if (!userProgress.completions) userProgress.completions = {};
         if (!userProgress.ankiCards) userProgress.ankiCards = {};
         if (!userProgress.ankiFolders) userProgress.ankiFolders = {};
+        
+        // Ensure all anki cards have knowCount
+        Object.values(userProgress.ankiCards).forEach(c => {
+            if (c.knowCount === undefined) c.knowCount = 0;
+        });
         
         injectCustomCourse();
     } catch (err) {
@@ -1530,8 +1535,8 @@ async function finishLesson() {
 // --- ANKI SYSTEM LOGIC ---
 
 function renderAnkiControls(areaId) {
-    const cards = Object.values(userProgress.ankiCards).filter(c => c.areaId === areaId);
-    const dueCount = cards.filter(c => !c.nextReview || c.nextReview <= Date.now()).length;
+    const cards = Object.values(userProgress.ankiCards).filter(c => c.areaId === areaId && c.knowCount < 3);
+    const totalCount = Object.values(userProgress.ankiCards).filter(c => c.areaId === areaId).length;
 
     return `
         <div class="anki-toolbar fade-in">
@@ -1542,10 +1547,10 @@ function renderAnkiControls(areaId) {
                 <ion-icon name="folder-outline"></ion-icon> Папки
             </div>
             <div class="anki-tool-btn at-train" onclick="startAnkiTraining('${areaId}')">
-                <ion-icon name="flash-outline"></ion-icon> Тренировать (${dueCount})
+                <ion-icon name="flash-outline"></ion-icon> Тренировать (${cards.length})
             </div>
             <div style="margin-left:auto; display:flex; align-items:center; gap:10px; font-size:0.8rem; color:var(--text-secondary);">
-                <span>Всего: ${cards.length}</span>
+                <span>Всего: ${totalCount}</span>
             </div>
         </div>
     `;
@@ -1602,7 +1607,8 @@ async function saveAnkiCard() {
             id, areaId, folderId, front, back, image,
             interval: 0,
             nextReview: 0,
-            quality: 0
+            quality: 0,
+            knowCount: 0
         };
     }
 
@@ -1793,14 +1799,15 @@ async function deleteAnkiCard(cardId, folderId, areaId) {
 // --- ANKI TRAINING ---
 
 function startAnkiTraining(areaId) {
+    // Only cards with < 3 knows are eligible for training
     const cards = Object.values(userProgress.ankiCards)
-        .filter(c => c.areaId === areaId && (!c.nextReview || c.nextReview <= Date.now()));
+        .filter(c => c.areaId === areaId && c.knowCount < 3);
     
-    if (cards.length === 0) return alert('На сегодня нет карточек для повторения! 🔥');
+    if (cards.length === 0) return alert('Все имеющиеся карточки уже освоены! 🔥');
 
     ankiTrainState = {
         areaId: areaId,
-        cards: cards.sort(() => Math.random() - 0.5),
+        queue: cards.sort(() => Math.random() - 0.5),
         currentIndex: 0
     };
 
@@ -1809,27 +1816,39 @@ function startAnkiTraining(areaId) {
 
 function renderAnkiTrainingScreen() {
     const main = document.getElementById('main-content');
-    const card = ankiTrainState.cards[ankiTrainState.currentIndex];
+    
+    // If queue is empty, training is over
+    if (ankiTrainState.queue.length === 0) {
+        alert('Тренировка завершена! Вы выучили всё запланированное. 🔥');
+        renderSubsystems(ankiTrainState.areaId);
+        return;
+    }
+
+    const card = ankiTrainState.queue[0]; // Always show the first card in queue
     const folder = card.folderId ? userProgress.ankiFolders[card.folderId] : null;
 
     main.innerHTML = `
         <div class="lesson-screen fade-in">
             <header style="margin-bottom: 2rem; display:flex; justify-content:space-between; align-items:center;">
                 <a href="#" onclick="renderSubsystems('${ankiTrainState.areaId}')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
-                    <ion-icon name="close-outline" style="font-size:1.5rem;"></ion-icon> Выйти из тренировки
+                    <ion-icon name="close-outline" style="font-size:1.5rem;"></ion-icon> Выйти
                 </a>
-                <span style="color:var(--text-secondary); font-size:0.9rem;">Карточка ${ankiTrainState.currentIndex + 1} из ${ankiTrainState.cards.length}</span>
+                <div style="text-align: right;">
+                    <div style="color:var(--text-secondary); font-size:0.8rem;">В очереди: ${ankiTrainState.queue.length}</div>
+                    <div style="color:var(--lvl-4); font-size:0.8rem; font-weight:bold;">Освоение: ${card.knowCount}/3</div>
+                </div>
             </header>
 
             <div class="anki-card-container" id="anki-card-container" onclick="flipAnkiCard()">
                 <div class="anki-card-inner">
                     <div class="anki-card-front">
                         ${folder ? `<span class="anki-folder-badge">${folder.name}</span>` : ''}
-                        ${card.image ? `<img src="${card.image}" class="anki-card-image">` : ''}
-                        <h2 style="font-size: 2rem;">${card.front}</h2>
+                        <h3 style="color:var(--primary); margin-bottom: 1.5rem;">Вопрос:</h3>
+                        <h2 style="font-size: 1.5rem;">${card.front}</h2>
                         <p style="margin-top: 2rem; color: var(--text-secondary); font-size: 0.8rem;">Нажмите, чтобы увидеть ответ</p>
                     </div>
                     <div class="anki-card-back">
+                        ${card.image ? `<img src="${card.image}" class="anki-card-image">` : ''}
                         <h3 style="color:var(--secondary); margin-bottom: 1.5rem;">Ответ:</h3>
                         <p style="font-size: 1.5rem;">${card.back}</p>
                     </div>
@@ -1857,33 +1876,32 @@ function flipAnkiCard() {
 }
 
 async function submitAnkiFeedback(quality) {
-    const card = ankiTrainState.cards[ankiTrainState.currentIndex];
-    
-    // SRS Logic
-    // quality: 1 = Poor, 3 = Debatable, 5 = Know
+    // Current card is always the first in queue
+    const card = ankiTrainState.queue.shift();
+    if (!card) return;
+
     if (quality === 5) {
-        // Know: Increase interval
-        if (card.interval === 0) card.interval = 1;
-        else card.interval *= 2;
+        // ЗНАЮ (Know)
+        card.knowCount++;
+        if (card.knowCount < 3) {
+            // Move to end of queue for this session
+            ankiTrainState.queue.push(card);
+        }
+        // If knowCount >= 3, it's NOT pushed back, effectively finishing it
     } else if (quality === 3) {
-        // Debatable: Keep same interval (min 1 day if new)
-        if (card.interval === 0) card.interval = 1;
+        // СПОРНО (Debatable)
+        // Move to the middle of the queue
+        const mid = Math.floor(ankiTrainState.queue.length / 2);
+        ankiTrainState.queue.splice(mid, 0, card);
     } else {
-        // Poor: Reset interval to 0.5 day (show tomorrow)
-        card.interval = 0.5;
+        // ПЛОХО (Poor)
+        // Move to the very start of the queue (next card)
+        ankiTrainState.queue.unshift(card);
     }
 
-    const nextDate = new Date();
-    nextDate.setHours(nextDate.getHours() + (card.interval * 24));
-    card.nextReview = nextDate.getTime();
-
+    // Save progress to cloud
     await saveProgressToCloud();
 
-    ankiTrainState.currentIndex++;
-    if (ankiTrainState.currentIndex < ankiTrainState.cards.length) {
-        renderAnkiTrainingScreen();
-    } else {
-        alert('Тренировка завершена! Отличная работа. 🔥');
-        renderSubsystems(ankiTrainState.areaId);
-    }
+    // Re-render training screen for the next card in queue
+    renderAnkiTrainingScreen();
 }
