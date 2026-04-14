@@ -29,6 +29,7 @@ let currentLessonState = {
 
 let ankiTrainState = {
     areaId: null,
+    folderId: null,
     queue: [],
     currentIndex: 0
 };
@@ -1777,9 +1778,9 @@ function renderAnkiFolderContents(folderId, areaId) {
             <a href="#" onclick="renderSubsystems('${areaId}')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
                 <ion-icon name="arrow-back-outline"></ion-icon> Назад к курсу
             </a>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h1>Папка: ${folder.name}</h1>
-                <button class="btn btn-primary" onclick="openAnkiCardModal('${areaId}')" style="padding: 0.5rem 1rem; font-size: 0.8rem; text-transform:none;">➕ Новая карточка</button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button class="btn btn-primary at-train" onclick="startAnkiTraining('${areaId}', '${folderId}')" style="padding: 0.5rem 1.2rem; font-size: 0.8rem; text-transform:none; box-shadow:none;">⚡ Тренировать папку</button>
+                <button class="btn btn-primary" onclick="openAnkiCardModal('${areaId}')" style="padding: 0.5rem 1.2rem; font-size: 0.8rem; text-transform:none;">➕ Новая карточка</button>
             </div>
             <p style="color: var(--text-secondary);">Всего карточек в папке: ${cards.length}</p>
         </header>
@@ -1822,15 +1823,16 @@ async function deleteAnkiCard(cardId, folderId, areaId) {
 
 // --- ANKI TRAINING ---
 
-function startAnkiTraining(areaId) {
-    // Only cards with < 3 knows are eligible for training
+function startAnkiTraining(areaId, folderId = null) {
+    // Filter cards by mastery, area, and optionally folder
     const cards = Object.values(userProgress.ankiCards)
-        .filter(c => c.areaId === areaId && c.knowCount < 3);
+        .filter(c => c.areaId === areaId && c.knowCount < 3 && (!folderId || c.folderId === folderId));
     
-    if (cards.length === 0) return alert('Все имеющиеся карточки уже освоены! 🔥');
+    if (cards.length === 0) return alert('В этой категории нет доступных карточек для тренировки! 🔥');
 
     ankiTrainState = {
         areaId: areaId,
+        folderId: folderId,
         queue: cards.sort(() => Math.random() - 0.5),
         currentIndex: 0
     };
@@ -1843,18 +1845,26 @@ function renderAnkiTrainingScreen() {
     
     // If queue is empty, training is over
     if (ankiTrainState.queue.length === 0) {
-        alert('Тренировка завершена! Вы выучили всё запланированное. 🔥');
-        renderSubsystems(ankiTrainState.areaId);
+        alert('Тренировка завершена! 🔥');
+        if (ankiTrainState.folderId) {
+            renderAnkiFolderContents(ankiTrainState.folderId, ankiTrainState.areaId);
+        } else {
+            renderSubsystems(ankiTrainState.areaId);
+        }
         return;
     }
 
     const card = ankiTrainState.queue[0]; // Always show the first card in queue
     const folder = card.folderId ? userProgress.ankiFolders[card.folderId] : null;
 
+    const backAction = ankiTrainState.folderId ? 
+        `renderAnkiFolderContents('${ankiTrainState.folderId}', '${ankiTrainState.areaId}')` : 
+        `renderSubsystems('${ankiTrainState.areaId}')`;
+
     main.innerHTML = `
         <div class="lesson-screen fade-in">
             <header style="margin-bottom: 2rem; display:flex; justify-content:space-between; align-items:center;">
-                <a href="#" onclick="renderSubsystems('${ankiTrainState.areaId}')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                <a href="#" onclick="${backAction}" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
                     <ion-icon name="close-outline" style="font-size:1.5rem;"></ion-icon> Выйти
                 </a>
                 <div style="text-align: right;">
