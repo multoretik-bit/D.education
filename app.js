@@ -1591,11 +1591,12 @@ async function saveAnkiCard() {
     const front = document.getElementById('anki-front-input').value.trim();
     const back = document.getElementById('anki-back-input').value.trim();
     const urlImage = document.getElementById('anki-image-input').value.trim();
+    const previewContainer = document.getElementById('anki-image-preview');
     const previewImg = document.getElementById('anki-preview-img');
     const folderId = document.getElementById('anki-folder-select').value;
     
     // Choose the best image (preview contains Base64 or URL)
-    const image = (previewImg.src && previewImg.style.display !== 'none' && !previewImg.src.endsWith('index.html')) ? previewImg.src : urlImage;
+    const image = (previewImg.src && previewContainer.style.display !== 'none' && !previewImg.src.includes('index.html')) ? previewImg.src : urlImage;
 
     if (!front || !back) return alert('Заполните обе стороны карточки');
 
