@@ -1056,10 +1056,21 @@ function renderSubsystems(areaId) {
                 </div>
             </div>
             ${renderAnkiControls(areaId)}
-            <p style="color: var(--text-secondary);">Выберите блок обучения.</p>
-        </header>
-        <div class="grid fade-in" style="grid-template-columns: 1fr;">
-            ${area.subsystems.map(subId => {
+            
+            <div id="anki-folders-section" style="margin-bottom: 3rem;">
+                <h2 style="color: var(--secondary); font-size: 1.5rem; margin-bottom: 1.5rem; display:flex; align-items:center; gap:10px;">
+                    <ion-icon name="folder-open-outline"></ion-icon> Папки Анки
+                </h2>
+                <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
+                    ${renderAnkiFoldersGrid(areaId)}
+                </div>
+            </div>
+
+            <h2 style="color: var(--text-main); font-size: 1.5rem; margin-bottom: 1.5rem; display:flex; align-items:center; gap:10px;">
+                <ion-icon name="layers-outline"></ion-icon> Основные главы
+            </h2>
+            <div class="grid fade-in" style="grid-template-columns: 1fr;">
+                ${area.subsystems.map(subId => {
         const sub = KNOWLEDGE_BASE.subsystems[subId];
         if (!sub) return '';
         return `
@@ -1639,7 +1650,97 @@ async function deleteAnkiFolder(id, areaId) {
     
     delete userProgress.ankiFolders[id];
     await saveProgressToCloud();
+    
+    // Refresh both list and the main view
     renderAnkiFoldersList(areaId);
+    renderSubsystems(areaId);
+}
+
+function renderAnkiFoldersGrid(areaId) {
+    const folders = Object.values(userProgress.ankiFolders).filter(f => f.areaId === areaId);
+    const unfiledCards = Object.values(userProgress.ankiCards).filter(c => c.areaId === areaId && !c.folderId);
+    
+    let html = '';
+    
+    // "General" Folder for cards without folder
+    if (unfiledCards.length > 0) {
+        html += `
+            <div class="anki-folder-card" onclick="renderAnkiFolderContents('', '${areaId}')">
+                <div>
+                    <h3 style="font-size: 1.1rem; color: var(--secondary);">Общие карточки</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 4px;">${unfiledCards.length} карточек</p>
+                </div>
+                <ion-icon name="folder-outline" style="font-size: 1.8rem; color: var(--secondary);"></ion-icon>
+            </div>
+        `;
+    }
+
+    folders.forEach(f => {
+        const folderCards = Object.values(userProgress.ankiCards).filter(c => c.folderId === f.id);
+        html += `
+            <div class="anki-folder-card" onclick="renderAnkiFolderContents('${f.id}', '${areaId}')">
+                <div>
+                    <h3 style="font-size: 1.1rem;">${f.name}</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 4px;">${folderCards.length} карточек</p>
+                </div>
+                <ion-icon name="folder-outline" style="font-size: 1.8rem; color: var(--text-secondary);"></ion-icon>
+            </div>
+        `;
+    });
+
+    return html || '<p style="color: var(--text-secondary); font-size: 0.9rem;">Папок еще нет. Создайте первую!</p>';
+}
+
+function getAnkiCardLevel(card) {
+    const interval = card.interval || 0;
+    if (interval <= 0) return { lvl: 1, color: 'var(--lvl-1)', label: 'Новая' };
+    if (interval < 1) return { lvl: 1, color: 'var(--lvl-1)', label: 'Учу' };
+    if (interval < 4) return { lvl: 2, color: 'var(--lvl-2)', label: 'Знакома' };
+    if (interval < 10) return { lvl: 3, color: 'var(--lvl-3)', label: 'Твердо' };
+    return { lvl: 4, color: 'var(--lvl-4)', label: 'Освоена' };
+}
+
+function renderAnkiFolderContents(folderId, areaId) {
+    const main = document.getElementById('main-content');
+    const folder = folderId ? userProgress.ankiFolders[folderId] : { name: 'Общие карточки' };
+    const cards = Object.values(userProgress.ankiCards).filter(c => c.areaId === areaId && c.folderId === folderId);
+
+    main.innerHTML = `
+        <header style="margin-bottom: 3rem;" class="fade-in">
+            <a href="#" onclick="renderSubsystems('${areaId}')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <ion-icon name="arrow-back-outline"></ion-icon> Назад к курсу
+            </a>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1>Папка: ${folder.name}</h1>
+                <button class="btn btn-primary" onclick="openAnkiCardModal('${areaId}')" style="padding: 0.5rem 1rem; font-size: 0.8rem; text-transform:none;">➕ Новая карточка</button>
+            </div>
+            <p style="color: var(--text-secondary);">Всего карточек в папке: ${cards.length}</p>
+        </header>
+
+        <div class="grid fade-in" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+            ${cards.map(c => {
+                const level = getAnkiCardLevel(c);
+                return `
+                    <div class="anki-mini-card">
+                        <div class="anki-card-actions">
+                            <ion-icon name="trash-outline" class="anki-action-icon" style="color:var(--primary);" onclick="event.stopPropagation(); deleteAnkiCard('${c.id}', '${folderId}', '${areaId}')"></ion-icon>
+                        </div>
+                        <span class="anki-level-badge" style="background: ${level.color};">${level.label}</span>
+                        <div style="font-weight: 500; font-size: 1.1rem; color: var(--text-main); margin-top: 5px;">${c.front}</div>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary); font-style: italic;">${c.back.substring(0, 50)}${c.back.length > 50 ? '...' : ''}</div>
+                    </div>
+                `;
+            }).join('') || '<p style="color: var(--text-secondary);">В этой папке пока нет карточек.</p>'}
+        </div>
+    `;
+}
+
+async function deleteAnkiCard(cardId, folderId, areaId) {
+    if (!confirm('Удалить эту карточку навсегда?')) return;
+    
+    delete userProgress.ankiCards[cardId];
+    await saveProgressToCloud();
+    renderAnkiFolderContents(folderId, areaId);
 }
 
 // --- ANKI TRAINING ---
