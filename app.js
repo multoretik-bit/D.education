@@ -16,13 +16,21 @@ let userProgress = {
     customLessons: {},
     customAreas: {},
     customSubsystems: {},
-    customSkills: {}
+    customSkills: {},
+    ankiCards: {},
+    ankiFolders: {}
 };
 
 let currentLessonState = {
     lessonId: null,
     step: 0,
     cards: []
+};
+
+let ankiTrainState = {
+    areaId: null,
+    cards: [],
+    currentIndex: 0
 };
 
 // --- CLOUD SYNC ---
@@ -77,6 +85,8 @@ async function loadProgressFromCloud() {
         if (!userProgress.customSubsystems) userProgress.customSubsystems = {};
         if (!userProgress.customSkills) userProgress.customSkills = {};
         if (!userProgress.completions) userProgress.completions = {};
+        if (!userProgress.ankiCards) userProgress.ankiCards = {};
+        if (!userProgress.ankiFolders) userProgress.ankiFolders = {};
         
         injectCustomCourse();
     } catch (err) {
@@ -1045,6 +1055,7 @@ function renderSubsystems(areaId) {
                     ` : ''}
                 </div>
             </div>
+            ${renderAnkiControls(areaId)}
             <p style="color: var(--text-secondary);">Выберите блок обучения.</p>
         </header>
         <div class="grid fade-in" style="grid-template-columns: 1fr;">
@@ -1504,4 +1515,227 @@ async function finishLesson() {
     setTimeout(() => {
         alert(`Урок завершен! Успех: ${lessonProgress.masteryLevel} из 4.\n\n${nextMsg}`);
     }, 100);
+}
+// --- ANKI SYSTEM LOGIC ---
+
+function renderAnkiControls(areaId) {
+    const cards = Object.values(userProgress.ankiCards).filter(c => c.areaId === areaId);
+    const dueCount = cards.filter(c => !c.nextReview || c.nextReview <= Date.now()).length;
+
+    return `
+        <div class="anki-toolbar fade-in">
+            <div class="anki-tool-btn at-add" onclick="openAnkiCardModal('${areaId}')">
+                <ion-icon name="add-circle-outline"></ion-icon> Добавить карточку
+            </div>
+            <div class="anki-tool-btn at-folder" onclick="openAnkiFoldersModal('${areaId}')">
+                <ion-icon name="folder-outline"></ion-icon> Папки
+            </div>
+            <div class="anki-tool-btn at-train" onclick="startAnkiTraining('${areaId}')">
+                <ion-icon name="flash-outline"></ion-icon> Тренировать (${dueCount})
+            </div>
+            <div style="margin-left:auto; display:flex; align-items:center; gap:10px; font-size:0.8rem; color:var(--text-secondary);">
+                <span>Всего: ${cards.length}</span>
+            </div>
+        </div>
+    `;
+}
+
+function openAnkiCardModal(areaId) {
+    const modal = document.getElementById('anki-card-modal');
+    modal.classList.remove('hidden');
+    document.getElementById('anki-target-area').value = areaId;
+    document.getElementById('anki-front-input').value = '';
+    document.getElementById('anki-back-input').value = '';
+    document.getElementById('anki-image-input').value = '';
+    
+    // Fill folders select
+    const select = document.getElementById('anki-folder-select');
+    select.innerHTML = '<option value="">Без папки</option>';
+    Object.values(userProgress.ankiFolders)
+        .filter(f => f.areaId === areaId)
+        .forEach(f => {
+            select.innerHTML += `<option value="${f.id}">${f.name}</option>`;
+        });
+    
+    document.getElementById('anki-front-input').focus();
+}
+
+function closeAnkiCardModal() {
+    document.getElementById('anki-card-modal').classList.add('hidden');
+}
+
+async function saveAnkiCard() {
+    const areaId = document.getElementById('anki-target-area').value;
+    const front = document.getElementById('anki-front-input').value.trim();
+    const back = document.getElementById('anki-back-input').value.trim();
+    const image = document.getElementById('anki-image-input').value.trim();
+    const folderId = document.getElementById('anki-folder-select').value;
+
+    if (!front || !back) return alert('Заполните обе стороны карточки');
+
+    const id = 'anki_' + Date.now();
+    userProgress.ankiCards[id] = {
+        id, areaId, folderId, front, back, image,
+        interval: 0,
+        nextReview: 0,
+        quality: 0
+    };
+
+    await saveProgressToCloud();
+    closeAnkiCardModal();
+    renderSubsystems(areaId);
+}
+
+function openAnkiFoldersModal(areaId) {
+    const modal = document.getElementById('anki-folders-modal');
+    modal.classList.remove('hidden');
+    document.getElementById('anki-target-area').value = areaId; // reuse target area input or global
+    renderAnkiFoldersList(areaId);
+}
+
+function closeAnkiFoldersModal() {
+    document.getElementById('anki-folders-modal').classList.add('hidden');
+}
+
+function renderAnkiFoldersList(areaId) {
+    const list = document.getElementById('anki-folders-list');
+    const folders = Object.values(userProgress.ankiFolders).filter(f => f.areaId === areaId);
+    
+    if (folders.length === 0) {
+        list.innerHTML = '<p style="text-align:center; color:var(--text-secondary); padding: 1rem;">Папок пока нет</p>';
+        return;
+    }
+
+    list.innerHTML = folders.map(f => `
+        <div class="anki-folder-item">
+            <span><ion-icon name="folder-outline"></ion-icon> ${f.name}</span>
+            <ion-icon name="trash-outline" style="cursor:pointer; color:var(--primary);" onclick="deleteAnkiFolder('${f.id}', '${areaId}')"></ion-icon>
+        </div>
+    `).join('');
+}
+
+async function createAnkiFolder() {
+    const titleInput = document.getElementById('anki-new-folder-title');
+    const areaId = document.getElementById('anki-target-area').value; // from modal context
+    const name = titleInput.value.trim();
+
+    if (!name) return;
+
+    const id = 'folder_' + Date.now();
+    userProgress.ankiFolders[id] = { id, areaId, name };
+    
+    titleInput.value = '';
+    await saveProgressToCloud();
+    renderAnkiFoldersList(areaId);
+}
+
+async function deleteAnkiFolder(id, areaId) {
+    if (!confirm('Удалить папку? Карточки в ней останутся, но будут без папки.')) return;
+    
+    // Detach cards
+    Object.values(userProgress.ankiCards).forEach(c => {
+        if (c.folderId === id) c.folderId = '';
+    });
+    
+    delete userProgress.ankiFolders[id];
+    await saveProgressToCloud();
+    renderAnkiFoldersList(areaId);
+}
+
+// --- ANKI TRAINING ---
+
+function startAnkiTraining(areaId) {
+    const cards = Object.values(userProgress.ankiCards)
+        .filter(c => c.areaId === areaId && (!c.nextReview || c.nextReview <= Date.now()));
+    
+    if (cards.length === 0) return alert('На сегодня нет карточек для повторения! 🔥');
+
+    ankiTrainState = {
+        areaId: areaId,
+        cards: cards.sort(() => Math.random() - 0.5),
+        currentIndex: 0
+    };
+
+    renderAnkiTrainingScreen();
+}
+
+function renderAnkiTrainingScreen() {
+    const main = document.getElementById('main-content');
+    const card = ankiTrainState.cards[ankiTrainState.currentIndex];
+    const folder = card.folderId ? userProgress.ankiFolders[card.folderId] : null;
+
+    main.innerHTML = `
+        <div class="lesson-screen fade-in">
+            <header style="margin-bottom: 2rem; display:flex; justify-content:space-between; align-items:center;">
+                <a href="#" onclick="renderSubsystems('${ankiTrainState.areaId}')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                    <ion-icon name="close-outline" style="font-size:1.5rem;"></ion-icon> Выйти из тренировки
+                </a>
+                <span style="color:var(--text-secondary); font-size:0.9rem;">Карточка ${ankiTrainState.currentIndex + 1} из ${ankiTrainState.cards.length}</span>
+            </header>
+
+            <div class="anki-card-container" id="anki-card-container" onclick="flipAnkiCard()">
+                <div class="anki-card-inner">
+                    <div class="anki-card-front">
+                        ${folder ? `<span class="anki-folder-badge">${folder.name}</span>` : ''}
+                        ${card.image ? `<img src="${card.image}" class="anki-card-image">` : ''}
+                        <h2 style="font-size: 2rem;">${card.front}</h2>
+                        <p style="margin-top: 2rem; color: var(--text-secondary); font-size: 0.8rem;">Нажмите, чтобы увидеть ответ</p>
+                    </div>
+                    <div class="anki-card-back">
+                        <h3 style="color:var(--secondary); margin-bottom: 1.5rem;">Ответ:</h3>
+                        <p style="font-size: 1.5rem;">${card.back}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="anki-controls" class="hidden">
+                <p style="text-align:center; color:var(--text-secondary); margin-bottom: 1rem;">Как хорошо вы это знали?</p>
+                <div class="anki-feedback-group">
+                    <button class="anki-fb-btn fb-poor" onclick="submitAnkiFeedback(1)">ПЛОХО</button>
+                    <button class="anki-fb-btn fb-debatable" onclick="submitAnkiFeedback(3)">СПОРНО</button>
+                    <button class="anki-fb-btn fb-know" onclick="submitAnkiFeedback(5)">ЗНАЮ</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function flipAnkiCard() {
+    const container = document.getElementById('anki-card-container');
+    if (container.classList.contains('is-flipped')) return;
+    
+    container.classList.add('is-flipped');
+    document.getElementById('anki-controls').classList.remove('hidden');
+}
+
+async function submitAnkiFeedback(quality) {
+    const card = ankiTrainState.cards[ankiTrainState.currentIndex];
+    
+    // SRS Logic
+    // quality: 1 = Poor, 3 = Debatable, 5 = Know
+    if (quality === 5) {
+        // Know: Increase interval
+        if (card.interval === 0) card.interval = 1;
+        else card.interval *= 2;
+    } else if (quality === 3) {
+        // Debatable: Keep same interval (min 1 day if new)
+        if (card.interval === 0) card.interval = 1;
+    } else {
+        // Poor: Reset interval to 0.5 day (show tomorrow)
+        card.interval = 0.5;
+    }
+
+    const nextDate = new Date();
+    nextDate.setHours(nextDate.getHours() + (card.interval * 24));
+    card.nextReview = nextDate.getTime();
+
+    await saveProgressToCloud();
+
+    ankiTrainState.currentIndex++;
+    if (ankiTrainState.currentIndex < ankiTrainState.cards.length) {
+        renderAnkiTrainingScreen();
+    } else {
+        alert('Тренировка завершена! Отличная работа. 🔥');
+        renderSubsystems(ankiTrainState.areaId);
+    }
 }

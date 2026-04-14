@@ -698,3 +698,136 @@ main {
     background: rgba(255,255,255,0.1);
     color: white;
 }
+
+/* ANKI SYSTEM STYLES */
+.anki-toolbar {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.anki-tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.6rem 1.2rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+    border: 1px solid transparent;
+}
+
+.at-add { background: rgba(255, 64, 129, 0.1); color: var(--primary); border-color: rgba(255, 64, 129, 0.2); }
+.at-folder { background: rgba(0, 229, 255, 0.1); color: var(--secondary); border-color: rgba(0, 229, 255, 0.2); }
+.at-train { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; border: none; box-shadow: 0 5px 15px rgba(255, 64, 129, 0.2); }
+
+.anki-tool-btn:hover { transform: translateY(-2px); filter: brightness(1.2); }
+
+.anki-card-container {
+    perspective: 1000px;
+    width: 100%;
+    max-width: 500px;
+    height: 350px;
+    margin: 2rem auto;
+    cursor: pointer;
+}
+
+.anki-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+}
+
+.anki-card-container.is-flipped .anki-card-inner {
+    transform: rotateY(180deg);
+}
+
+.anki-card-front, .anki-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    border-radius: 20px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.anki-card-back {
+    transform: rotateY(180deg);
+    background: #1a1a2e;
+}
+
+.anki-card-image {
+    max-width: 100%;
+    max-height: 150px;
+    object-fit: contain;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.anki-feedback-group {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    margin-top: 2rem;
+}
+
+.anki-fb-btn {
+    flex: 1;
+    padding: 0.8rem;
+    border-radius: 12px;
+    border: none;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+    transition: 0.2s;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.fb-poor { background: var(--lvl-1); }
+.fb-debatable { background: var(--lvl-2); }
+.fb-know { background: var(--lvl-4); }
+
+.anki-fb-btn:hover { transform: scale(1.05); filter: brightness(1.1); }
+
+.anki-folder-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.anki-empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-secondary);
+}
+
+.anki-folder-badge {
+    padding: 2px 6px;
+    background: rgba(0, 229, 255, 0.1);
+    color: var(--secondary);
+    border-radius: 4px;
+    font-size: 0.7rem;
+    margin-right: 5px;
+}

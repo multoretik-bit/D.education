@@ -104,6 +104,57 @@
         </div>
     </div>
 
+    <!-- Anki Card Modal -->
+    <div id="anki-card-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 500px;">
+            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 style="color:var(--primary);"><ion-icon name="albums-outline"></ion-icon> Новая карточка</h3>
+                <ion-icon name="close" onclick="closeAnkiCardModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
+            </header>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label class="modal-label">Информация / Слово (Лицевая сторона)</label>
+                    <input type="text" id="anki-front-input" class="check-input" style="margin-top: 0; min-height: auto;" placeholder="Например: 1918 или Apple">
+                </div>
+                <div>
+                    <label class="modal-label">Вопрос / Перевод (Обратная сторона)</label>
+                    <textarea id="anki-back-input" class="check-input" style="margin-top: 0; min-height: 100px;" placeholder="Например: В каком году закончилась 1-я мировая?"></textarea>
+                </div>
+                <div>
+                    <label class="modal-label">Ссылка на картинку (URL - необязательно)</label>
+                    <input type="text" id="anki-image-input" class="check-input" style="margin-top: 0; min-height: auto;" placeholder="https://example.com/image.jpg">
+                </div>
+                <div>
+                    <label class="modal-label">Папка</label>
+                    <select id="anki-folder-select" class="check-input" style="margin-top: 0; min-height: auto; appearance: none; background: rgba(0,0,0,0.3);">
+                        <option value="">Без папки</option>
+                    </select>
+                </div>
+                <input type="hidden" id="anki-target-area" value="">
+                <button class="btn btn-primary" onclick="saveAnkiCard()">Сохранить карточку</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Anki Folders Modal -->
+    <div id="anki-folders-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 400px;">
+            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 style="color:var(--secondary);"><ion-icon name="folder-outline"></ion-icon> Управление папками</h3>
+                <ion-icon name="close" onclick="closeAnkiFoldersModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
+            </header>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="anki-new-folder-title" class="check-input" style="margin-top: 0; min-height: auto;" placeholder="Новая папка...">
+                    <button class="btn btn-primary" style="padding: 0 1rem; background: var(--secondary); box-shadow: none;" onclick="createAnkiFolder()"><ion-icon name="add"></ion-icon></button>
+                </div>
+                <div id="anki-folders-list" style="max-height: 250px; overflow-y: auto; margin-top: 1rem;">
+                    <!-- Folders list will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="curriculum.js"></script>
     <script src="curriculum_meta.js"></script>
