@@ -1555,9 +1555,12 @@ function openAnkiCardModal(areaId) {
     const modal = document.getElementById('anki-card-modal');
     modal.classList.remove('hidden');
     document.getElementById('anki-target-area').value = areaId;
+    document.getElementById('edit-anki-card-id').value = ''; // Reset edit ID
     document.getElementById('anki-front-input').value = '';
     document.getElementById('anki-back-input').value = '';
     document.getElementById('anki-image-input').value = '';
+    
+    document.querySelector('#anki-card-modal h3').innerHTML = '<ion-icon name="albums-outline"></ion-icon> Новая карточка';
     
     // Fill folders select
     const select = document.getElementById('anki-folder-select');
@@ -1577,6 +1580,7 @@ function closeAnkiCardModal() {
 
 async function saveAnkiCard() {
     const areaId = document.getElementById('anki-target-area').value;
+    const editId = document.getElementById('edit-anki-card-id').value;
     const front = document.getElementById('anki-front-input').value.trim();
     const back = document.getElementById('anki-back-input').value.trim();
     const image = document.getElementById('anki-image-input').value.trim();
@@ -1584,17 +1588,59 @@ async function saveAnkiCard() {
 
     if (!front || !back) return alert('Заполните обе стороны карточки');
 
-    const id = 'anki_' + Date.now();
-    userProgress.ankiCards[id] = {
-        id, areaId, folderId, front, back, image,
-        interval: 0,
-        nextReview: 0,
-        quality: 0
-    };
+    if (editId && userProgress.ankiCards[editId]) {
+        // Edit Mode
+        const card = userProgress.ankiCards[editId];
+        card.front = front;
+        card.back = back;
+        card.image = image;
+        card.folderId = folderId;
+    } else {
+        // Create Mode
+        const id = 'anki_' + Date.now();
+        userProgress.ankiCards[id] = {
+            id, areaId, folderId, front, back, image,
+            interval: 0,
+            nextReview: 0,
+            quality: 0
+        };
+    }
 
     await saveProgressToCloud();
     closeAnkiCardModal();
-    renderSubsystems(areaId);
+    
+    // Determine which view to refresh
+    const mainTitle = document.querySelector('#main-content h1').innerText;
+    if (mainTitle.includes('Папка:')) {
+        renderAnkiFolderContents(folderId, areaId);
+    } else {
+        renderSubsystems(areaId);
+    }
+}
+
+function openEditAnkiCardModal(cardId, areaId) {
+    const card = userProgress.ankiCards[cardId];
+    if (!card) return;
+
+    const modal = document.getElementById('anki-card-modal');
+    modal.classList.remove('hidden');
+    
+    document.getElementById('anki-target-area').value = areaId;
+    document.getElementById('edit-anki-card-id').value = cardId;
+    document.getElementById('anki-front-input').value = card.front;
+    document.getElementById('anki-back-input').value = card.back;
+    document.getElementById('anki-image-input').value = card.image || '';
+    
+    document.querySelector('#anki-card-modal h3').innerHTML = '<ion-icon name="create-outline"></ion-icon> Редактировать карточку';
+    
+    // Fill folders select
+    const select = document.getElementById('anki-folder-select');
+    select.innerHTML = '<option value="">Без папки</option>';
+    Object.values(userProgress.ankiFolders)
+        .filter(f => f.areaId === areaId)
+        .forEach(f => {
+            select.innerHTML += `<option value="${f.id}" ${f.id === card.folderId ? 'selected' : ''}>${f.name}</option>`;
+        });
 }
 
 function openAnkiFoldersModal(areaId) {
@@ -1723,6 +1769,7 @@ function renderAnkiFolderContents(folderId, areaId) {
                 return `
                     <div class="anki-mini-card">
                         <div class="anki-card-actions">
+                            <ion-icon name="create-outline" class="anki-action-icon" style="color:var(--secondary);" onclick="event.stopPropagation(); openEditAnkiCardModal('${c.id}', '${areaId}')"></ion-icon>
                             <ion-icon name="trash-outline" class="anki-action-icon" style="color:var(--primary);" onclick="event.stopPropagation(); deleteAnkiCard('${c.id}', '${folderId}', '${areaId}')"></ion-icon>
                         </div>
                         <span class="anki-level-badge" style="background: ${level.color};">${level.label}</span>
