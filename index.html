@@ -3,125 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>dEducation | Система Обучения</title>
+    <title>dEducation | Debug Console</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        #debug-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            overflow-y: scroll;
+            border-top: 2px solid #333;
+            z-index: 9999;
+            opacity: 0.9;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #222; padding-bottom: 2px; }
+        .log-error { color: #ff5555; font-weight: bold; }
+        .log-warn { color: #ffff55; }
+    </style>
 </head>
-<body>
+<body style="background: #0f0f1a; margin: 0; overflow: hidden;">
 
-    <div id="auth-screen" class="auth-container" style="display: flex;">
-        <div class="auth-card">
-            <div class="logo">d<span>Education</span></div>
-            <h2>Вход в систему</h2>
-            <p>Введите ваш Email для восстановления данных</p>
-            <div class="form-group">
-                <input type="email" id="username-input" placeholder="multoretik@gmail.com" value="multoretik@gmail.com">
-            </div>
-            <button class="btn-primary" id="login-btn" onclick="startLoginProcess()">Войти и синхронизировать</button>
-            <div id="status-msg" style="margin-top:10px; font-size:0.8rem; color: #7b61ff;"></div>
+    <div id="debug-console">
+        <div class="log-entry">--- DEBUG CONSOLE INITIALIZED ---</div>
+    </div>
+
+    <div id="auth-screen" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: calc(100vh - 200px);">
+        <div class="auth-card" style="background: #1a1a2e; padding: 2rem; border-radius: 20px; text-align: center; color: white; width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div class="logo" style="font-size: 2rem; font-weight: bold; margin-bottom: 1rem;">d<span style="color: #7b61ff;">Education</span></div>
+            <p>Введите Email для входа</p>
+            <input type="email" id="username-input" value="multoretik@gmail.com" style="width: 100%; padding: 12px; border-radius: 10px; border: none; background: #252545; color: white; margin-bottom: 1rem;">
+            <button id="login-btn" style="width: 100%; padding: 12px; border-radius: 10px; border: none; background: linear-gradient(90deg, #7b61ff, #ff61d8); color: white; font-weight: bold; cursor: pointer;">
+                ВОЙТИ В АККАУНТ
+            </button>
         </div>
     </div>
 
-    <div id="app-screen" class="app-container" style="display: none;">
-        <aside>
-            <div class="logo">d<span>Education</span></div>
-            <ul class="nav-menu">
-                <li class="nav-item"><a href="#" class="nav-link active" onclick="switchView('home')">Главная</a></li>
-            </ul>
-        </aside>
-        <main id="main-content">
-            <h1 id="view-title">Главная</h1>
-            <div class="day-selector" id="day-selector"></div>
-            <div class="lessons-container" id="lessons-list"></div>
-        </main>
-    </div>
-
-    <!-- ВЕСЬ КОД ТЕПЕРЬ ТУТ, ЧТОБЫ ОН ТОЧНО РАБОТАЛ -->
     <script>
+        // --- ПЕРЕХВАТ КОНСОЛИ ---
+        const consoleDiv = document.getElementById('debug-console');
+        function addLog(msg, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry' + (type !== 'info' ? ' log-' + type : '');
+            const time = new Date().toLocaleTimeString();
+            entry.innerText = `[${time}] ${msg}`;
+            consoleDiv.appendChild(entry);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        // Переопределяем стандартную консоль
+        const originalLog = console.log;
+        const originalError = console.error;
+        console.log = (...args) => { originalLog(...args); addLog(args.join(' ')); };
+        console.error = (...args) => { originalError(...args); addLog(args.join(' '), 'error'); };
+
+        // Глобальные ошибки
+        window.onerror = (m, u, l) => console.error(`CRASH: ${m} at ${l}`);
+        window.onunhandledrejection = (e) => console.error(`PROMISE ERROR: ${e.reason}`);
+
+        // --- ЛОГИКА ВХОДА ---
         const supUrl = 'https://jjjkypymutcvrlngyhtt.supabase.co';
         const supKey = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
-        let supabase;
 
-        function startLoginProcess() {
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            console.log("Кнопка нажата. Начало процесса...");
             const email = document.getElementById('username-input').value.trim();
-            if (!email) return alert("Введите Email");
             
-            const btn = document.getElementById('login-btn');
-            btn.innerText = "Загрузка...";
-            btn.disabled = true;
-
-            if (!window.supabase) {
-                alert("Ошибка: Библиотека Supabase не загружена. Попробуйте обновить страницу.");
-                btn.innerText = "Войти и синхронизировать";
-                btn.disabled = false;
-                return;
-            }
-
-            supabase = window.supabase.createClient(supUrl, supKey);
-            doLogin(email);
-        }
-
-        async function doLogin(email) {
             try {
-                localStorage.setItem('d_edu_user', email);
-                
-                // Проверка старых данных
-                const { data: old } = await supabase.from('user_progress').select('data').eq('user_id', email).maybeSingle();
-                if (old && old.data) {
-                    document.getElementById('status-msg').innerText = "Перенос данных...";
-                    await migrate(email, old.data);
+                if (!window.supabase) {
+                    console.error("БИБЛИОТЕКА SUPABASE НЕ ЗАГРУЖЕНА!");
+                    return;
                 }
 
-                showApp();
-            } catch (e) {
-                alert("Ошибка: " + e.message);
-                const btn = document.getElementById('login-btn');
-                btn.innerText = "Войти и синхронизировать";
-                btn.disabled = false;
-            }
-        }
+                console.log("Инициализация Supabase...");
+                const supabase = window.supabase.createClient(supUrl, supKey);
+                
+                console.log(`Запрос данных для: ${email}`);
+                const { data, error } = await supabase.from('user_progress').select('data').eq('user_id', email).maybeSingle();
 
-        async function migrate(uid, legacy) {
-            if (legacy.stats) {
-                await supabase.from('user_profiles').upsert({ user_id: uid, xp: legacy.stats.totalXp, coins: legacy.stats.coins, streak: legacy.stats.streak });
-            }
-            if (legacy.lessons) {
-                const entries = Object.entries(legacy.lessons).map(([id, d]) => ({ user_id: uid, lesson_id: id, status: d.status || 'completed', progress: d.progress || 100 }));
-                if (entries.length > 0) await supabase.from('user_lessons').upsert(entries, { onConflict: 'user_id, lesson_id' });
-            }
-        }
+                if (error) {
+                    console.error(`ОШИБКА БАЗЫ: ${error.message} (Код: ${error.code})`);
+                    return;
+                }
 
-        async function showApp() {
-            document.getElementById('auth-screen').style.display = 'none';
-            document.getElementById('app-screen').style.display = 'flex';
-            
-            const email = localStorage.getItem('d_edu_user');
-            const { data: p } = await supabase.from('user_profiles').select('*').eq('user_id', email).maybeSingle();
-            const { data: s } = await supabase.from('user_schedule').select('*').eq('user_id', email);
-            
-            renderSchedule(s || []);
-        }
+                if (data) {
+                    console.log("ДАННЫЕ НАЙДЕНЫ! Вход выполнен.");
+                    alert("Успех! Данные найдены. Сейчас страница обновится.");
+                    localStorage.setItem('d_edu_user', email);
+                    location.reload();
+                } else {
+                    console.log("Аккаунт не найден в старой базе. Проверьте Email.");
+                    alert("Аккаунт не найден. Проверьте правильность Email.");
+                }
 
-        function renderSchedule(tasks) {
-            const list = document.getElementById('lessons-list');
-            list.innerHTML = tasks.length ? "" : "<p>Уроков нет</p>";
-            tasks.forEach(t => {
-                const card = document.createElement('div');
-                card.className = "lesson-card purple";
-                card.innerHTML = `<h3>Урок: ${t.task_id}</h3><p>Время: ${t.start_time}</p>`;
-                list.appendChild(card);
-            });
-        }
-
-        // Авто-вход
-        window.onload = () => {
-            const user = localStorage.getItem('d_edu_user');
-            if (user && window.supabase) {
-                supabase = window.supabase.createClient(supUrl, supKey);
-                showApp();
+            } catch (err) {
+                console.error(`ОШИБКА СКРИПТА: ${err.message}`);
             }
-        };
+        });
+
+        console.log("Система готова. Ожидание нажатия кнопки...");
     </script>
 </body>
 </html>
