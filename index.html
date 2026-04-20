@@ -5,58 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>dEducation | Система Обучения</title>
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- Сначала библиотеки -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    
+    <style>
+        /* Мини-фикс для надежности кнопки */
+        #login-btn { cursor: pointer; pointer-events: all !important; }
+    </style>
 </head>
 <body>
 
-    <!-- Экран Входа -->
-    <div id="auth-screen" class="auth-container">
+    <div id="auth-screen" class="auth-container" style="display: flex;">
         <div class="auth-card">
             <div class="logo">d<span>Education</span></div>
             <h2>Вход в систему</h2>
-            <p>Введите ваш Email для восстановления доступа и прогресса</p>
+            <p>Введите ваш Email для доступа к урокам</p>
             <div class="form-group">
-                <input type="email" id="username-input" placeholder="example@gmail.com">
+                <input type="email" id="username-input" placeholder="multoretik@gmail.com" value="multoretik@gmail.com">
             </div>
-            <button class="btn-primary" id="login-btn">Войти и синхронизировать</button>
-            <p style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-dim);">Все ваши старые сохранения будут перенесены автоматически.</p>
+            <!-- Инлайновый вызов для 100% срабатывания -->
+            <button class="btn-primary" id="login-btn" onclick="if(window.handleLogin) { window.handleLogin(); } else { alert('Система еще загружается, подождите 2 секунды...'); }">Войти и синхронизировать</button>
+            <div id="debug-msg" style="color: red; font-size: 0.7rem; margin-top: 10px;"></div>
         </div>
     </div>
 
-    <!-- Основной интерфейс -->
     <div id="app-screen" class="app-container" style="display: none;">
         <aside>
             <div class="logo">d<span>Education</span></div>
             <ul class="nav-menu">
                 <li class="nav-item"><a href="#" class="nav-link active" onclick="switchView('home')"><ion-icon name="home-outline"></ion-icon> Главная</a></li>
                 <li class="nav-item"><a href="#" class="nav-link" onclick="switchView('schedule')"><ion-icon name="calendar-outline"></ion-icon> План</a></li>
-                <li class="nav-item"><a href="#" class="nav-link" onclick="switchView('catalog')"><ion-icon name="book-outline"></ion-icon> Курсы</a></li>
-                <li class="nav-item"><a href="#" class="nav-link" onclick="switchView('progress')"><ion-icon name="stats-chart-outline"></ion-icon> Прогресс</a></li>
             </ul>
         </aside>
-
         <main id="main-content">
             <div class="header-section">
                 <h1 id="view-title">Главная</h1>
-                <p id="view-subtitle">Сегодняшние уроки</p>
+                <p id="view-subtitle">Загрузка...</p>
             </div>
             <div class="day-selector" id="day-selector"></div>
             <div class="lessons-container" id="lessons-list"></div>
-
-            <div class="fab-container">
-                <div class="fab-btn" onclick="openAddLessonModal()"><ion-icon name="add"></ion-icon></div>
-            </div>
         </main>
     </div>
 
-    <div class="modal-overlay" id="modal-overlay">
-        <div class="modal-content" id="modal-content"></div>
-    </div>
-
-    <!-- Скрипты в строгом порядке -->
+    <!-- Загрузка данных и логики -->
     <script src="data_v5.js"></script>
     <script src="app.js"></script>
+    
+    <script>
+        // Проверка загрузки
+        window.addEventListener('load', () => {
+            console.log("Page fully loaded");
+            if (!window.supabase) {
+                document.getElementById('debug-msg').innerText = "ВНИМАНИЕ: Supabase не загрузился. Проверьте интернет.";
+            }
+        });
+    </script>
 </body>
 </html>
