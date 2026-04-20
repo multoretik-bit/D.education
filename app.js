@@ -29,20 +29,71 @@ window.onload = async () => {
 
 async function handleLogin() {
     const email = document.getElementById('username-input').value.trim();
-    if (!email || !email.includes('@')) return alert('Введите корректный Email');
+    const password = document.getElementById('password-input').value.trim();
+    const loginBtn = document.getElementById('login-btn');
     
-    currentUser = email;
-    localStorage.setItem('d_edu_user', currentUser);
-    await initializeApp();
+    if (!email || !email.includes('@')) return alert('Введите корректный Email');
+    if (password.length < 4) return alert('Пароль должен быть не менее 4 символов');
+
+    loginBtn.innerText = 'Вход...';
+    loginBtn.disabled = true;
+    
+    try {
+        // 1. Check if user exists
+        const { data: authData, error: authError } = await supabase
+            .from('user_auth')
+            .select('*')
+            .eq('email', email)
+            .maybeSingle();
+
+        if (authError) throw authError;
+
+        if (!authData) {
+            // Register new user
+            const { error: regError } = await supabase
+                .from('user_auth')
+                .insert({ email, password });
+            
+            if (regError) throw regError;
+            alert('Аккаунт создан! Добро пожаловать.');
+        } else {
+            // Check password
+            if (authData.password !== password) {
+                alert('Неверный пароль!');
+                loginBtn.innerText = 'Войти в систему';
+                loginBtn.disabled = false;
+                return;
+            }
+        }
+
+        currentUser = email;
+        localStorage.setItem('d_edu_user', currentUser);
+        await initializeApp();
+    } catch (err) {
+        console.error("Login error:", err);
+        alert('Ошибка входа: убедитесь, что вы запустили новый SQL код в Supabase!');
+        loginBtn.innerText = 'Войти в систему';
+        loginBtn.disabled = false;
+    }
+}
+
+function showAuthScreen() {
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('app-screen').style.display = 'none';
 }
 
 async function initializeApp() {
+    console.log("Initializing app for:", currentUser);
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'flex';
     
-    await loadDataFromCloud();
-    renderDaySelector();
-    renderLessonsForDay(selectedDate);
+    try {
+        await loadDataFromCloud();
+        renderDaySelector();
+        renderLessonsForDay(selectedDate);
+    } catch (err) {
+        console.error("Initialization failed:", err);
+    }
 }
 
 // --- CLOUD SYNC (The "New Codes") ---

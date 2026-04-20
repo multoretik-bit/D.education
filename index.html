@@ -15,11 +15,14 @@
         <div class="auth-card fade-in-up">
             <div class="logo">d<span>Education</span></div>
             <h2>С возвращением</h2>
-            <p>Введите Email для синхронизации вашего прогресса</p>
+            <p>Введите Email и пароль для входа</p>
             <div class="form-group">
-                <input type="email" id="username-input" placeholder="example@gmail.com">
+                <input type="email" id="username-input" placeholder="Email (например: user@mail.com)">
             </div>
-            <button class="btn-primary" onclick="handleLogin()">Войти в систему</button>
+            <div class="form-group">
+                <input type="password" id="password-input" placeholder="Ваш пароль">
+            </div>
+            <button class="btn-primary" id="login-btn" onclick="handleLogin()">Войти в систему</button>
         </div>
     </div>
 
