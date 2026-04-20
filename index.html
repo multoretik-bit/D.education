@@ -98,12 +98,18 @@
                     <input type="text" id="course-title-input" class="check-input" style="margin-top: 0;" placeholder="Например: Мой Английский">
                 </div>
                 <div>
-                    <label class="modal-label">Ссылка на фото (URL)</label>
-                    <input type="text" id="course-photo-input" class="check-input" style="margin-top: 0;" placeholder="Вставьте ссылку на картинку...">
+                    <label class="modal-label">Цвет курса</label>
+                    <div class="color-picker-mini" id="course-color-picker">
+                        <div class="color-opt c-purple selected" data-color="purple"></div>
+                        <div class="color-opt c-blue" data-color="blue"></div>
+                        <div class="color-opt c-green" data-color="green"></div>
+                        <div class="color-opt c-orange" data-color="orange"></div>
+                        <div class="color-opt c-pink" data-color="pink"></div>
+                    </div>
                 </div>
                 <div>
-                    <label class="modal-label">Иконка (название IonIcon)</label>
-                    <input type="text" id="course-icon-input" class="check-input" style="margin-top: 0;" value="school-outline" placeholder="book-outline, fitness-outline...">
+                    <label class="modal-label">Ссылка на фото (URL)</label>
+                    <input type="text" id="course-photo-input" class="check-input" style="margin-top: 0;" placeholder="Вставьте ссылку на картинку...">
                 </div>
                 <button class="btn btn-primary" id="save-course-btn" onclick="saveCustomCourse()">Создать курс</button>
             </div>
@@ -186,6 +192,53 @@
                     <!-- Folders list will be injected here -->
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Schedule Modal -->
+    <div id="schedule-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column; width: 600px;">
+            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1rem; flex-shrink: 0;">
+               <h3 style="color:var(--primary); font-size: 1.2rem;"><ion-icon name="calendar-outline"></ion-icon> План: <span id="modal-date-display" style="color: var(--text-main);">...</span></h3>
+               <ion-icon name="close" onclick="closeScheduleModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
+            </header>
+            
+            <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
+               <div class="modal-row" style="margin-bottom: 10px; display: flex; gap: 15px;">
+                   <div style="flex: 1;">
+                       <label class="modal-label">Начало</label>
+                       <input type="time" id="modal-task-time" class="time-input" value="19:00" style="width: 100%; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 8px;">
+                   </div>
+                   <div style="flex: 1;">
+                       <label class="modal-label">Длительность (мин)</label>
+                       <input type="number" id="modal-task-duration" class="number-input" value="60" min="5" max="180" style="width: 100%; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 8px;">
+                   </div>
+               </div>
+               <div style="margin-bottom: 10px;">
+                   <label class="modal-label">Тема / Свое название</label>
+                   <input type="text" id="modal-task-custom-title" class="check-input" style="margin-top:0; padding: 10px; min-height: auto;" placeholder="Например: Чтение: Глава 5">
+               </div>
+               <div>
+                   <label class="modal-label">Цвет урока</label>
+                   <div class="color-picker-mini" id="task-color-picker">
+                       <div class="color-opt c-purple selected" data-color="purple"></div>
+                       <div class="color-opt c-blue" data-color="blue"></div>
+                       <div class="color-opt c-green" data-color="green"></div>
+                       <div class="color-opt c-orange" data-color="orange"></div>
+                       <div class="color-opt c-pink" data-color="pink"></div>
+                   </div>
+               </div>
+            </div>
+
+            <p style="color:var(--text-secondary); margin-bottom: 1rem; font-size:0.9rem; flex-shrink: 0;">Выберите курс или урок:</p>
+            
+            <div id="modal-tab-browse" style="overflow-y:auto; flex-grow: 1; border: 1px solid rgba(255,255,255,0.05); padding: 10px; border-radius: 12px;">
+                <div id="modal-tree-content">
+                    <!-- Hierarchy injected here via JS -->
+                </div>
+            </div>
+            
+            <input type="hidden" id="modal-active-date" value="">
         </div>
     </div>
 

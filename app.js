@@ -43,8 +43,8 @@ let ankiTrainState = {
 
 // --- CLOUD SYNC ---
 async function loadProgressFromCloud() {
-    const main = document.getElementById('main-content');
-    main.innerHTML = `<p style="text-align:center; margin-top: 5rem; color: var(--text-secondary);">Синхронизация с облаком...</p>`;
+    console.log("Синхронизация с облаком...");
+    // Не стираем main-content, чтобы не ломать ID элементов
 
     try {
         const { data, error } = await supabaseClient
@@ -219,27 +219,26 @@ function closeCreateCourseModal() {
 async function saveCustomCourse() {
     const title = document.getElementById('course-title-input').value.trim();
     const photo = document.getElementById('course-photo-input').value.trim();
-    const icon = document.getElementById('course-icon-input').value.trim() || 'school-outline';
+    const color = getSelectedColor('course-color-picker');
     const editId = document.getElementById('edit-course-id').value;
     
     if (!title) return alert('Введите название курса');
 
     if (editId) {
-        // Edit Mode
         const area = userProgress.customAreas[editId];
         if (area) {
             area.title = title;
             area.imageUrl = photo;
-            area.icon = icon;
+            area.color = color;
         }
     } else {
-        // Create Mode
         const id = 'user_area_' + Date.now();
         userProgress.customAreas[id] = {
             id: id,
             title: title,
-            icon: icon,
+            icon: 'school-outline',
             imageUrl: photo,
+            color: color,
             subsystems: []
         };
     }
@@ -403,8 +402,9 @@ async function handleLogin() {
     render();
 }
 
-// Initial Render
+// --- INITIALIZATION ---
 window.onload = async () => {
+    setupColorPickers();
     if (!currentUser) {
         if (typeof renderLoginAuth === 'function') renderLoginAuth();
     } else {
@@ -412,6 +412,21 @@ window.onload = async () => {
         render();
     }
 };
+
+function setupColorPickers() {
+    document.querySelectorAll('.color-opt').forEach(opt => {
+        opt.onclick = () => {
+            const parent = opt.parentElement;
+            parent.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+        };
+    });
+}
+
+function getSelectedColor(pickerId) {
+    const selected = document.querySelector(`#${pickerId} .color-opt.selected`);
+    return selected ? selected.dataset.color : 'purple';
+}
 
 window.render = function() {
     const main = document.getElementById('main-content');
@@ -490,27 +505,30 @@ function renderLessonsPremium() {
     }
 
     tasks.forEach((t, i) => {
-        let title = "Урок";
-        let desc = "Тема: Грамматика и практика.";
+        let title = t.customTitle || "Урок";
+        let desc = "Тема: Практика и теория.";
         let progress = 0;
+        let color = t.color || (i % 2 === 0 ? 'purple' : 'blue');
 
         if (t.type === 'course') {
             const area = KNOWLEDGE_BASE.areas.find(a => a.id === t.id);
-            title = area ? area.title : "Курс";
-            desc = "Изучение основного блока знаний";
+            if (area) {
+                if (!t.customTitle) title = area.title;
+                desc = "Изучение основного блока знаний";
+                if (!t.color) color = area.color || 'blue';
+            }
         } else {
             const lesson = KNOWLEDGE_BASE.lessons[t.id];
             if (lesson) {
-                title = lesson.title;
-                desc = lesson.description || "Тема: Грамматика и практика.";
+                if (!t.customTitle) title = lesson.title;
+                desc = lesson.description || "Тема: Практика и теория.";
             }
         }
         
         if (userProgress.lessons[t.id]) progress = userProgress.lessons[t.id].progress || 0;
 
-        const colorClass = i % 2 === 0 ? 'purple' : 'blue';
         const card = document.createElement('div');
-        card.className = `premium-lesson-card ${colorClass} fade-in`;
+        card.className = `premium-lesson-card c-${color} fade-in`;
         
         const endTime = addMinutes(t.startTime, t.duration);
 
@@ -557,115 +575,35 @@ function updateNavActive(id) {
     document.getElementById(id).classList.add('active');
 }
 
-function renderDashboard() {
-    updateNavActive('nav-dashboard');
-    const main = document.getElementById('main-content');
+function renderAreas() {
+    currentView = 'catalog';
+    const cont = document.getElementById('lessons-list');
+    if (!cont) return;
+    cont.innerHTML = '';
+    
+    document.getElementById('view-title').innerText = "Каталог курсов";
+    document.getElementById('view-subtitle').innerHTML = "Выберите блок обучения для глубокого погружения.";
+    document.getElementById('day-selector').style.display = 'none';
+    document.getElementById('current-day-label').style.display = 'none';
 
-    // Calculate this week's dates (Monday to Sunday)
-    const today = new Date();
-    const currentDay = today.getDay(); // 0 is Sunday, 1 is Monday...
-    const distance = currentDay === 0 ? 6 : currentDay - 1; // days since Monday
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - distance);
-
-    const daysOfWeek = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
-    let calendarHtml = '<div class="calendar-grid fade-in">';
-
-    for (let i = 0; i < 7; i++) {
-        const dateIter = new Date(monday);
-        dateIter.setDate(monday.getDate() + i);
-        // Need stable local YYYY-MM-DD format regardless of timezone
-        const y = dateIter.getFullYear();
-        const m = String(dateIter.getMonth() + 1).padStart(2, '0');
-        const d = String(dateIter.getDate()).padStart(2, '0');
-        const dateStr = `${y}-${m}-${d}`;
-
-        const ty = today.getFullYear();
-        const tm = String(today.getMonth() + 1).padStart(2, '0');
-        const td = String(today.getDate()).padStart(2, '0');
-        const todayStr = `${ty}-${tm}-${td}`;
-        const isToday = dateStr === todayStr;
-
-        calendarHtml += `
-       <div class="calendar-day ${isToday ? 'current-day' : ''}">
-           <div class="day-header">
-               <span class="day-name">${daysOfWeek[i]}</span>
-               <span class="day-date">${dateIter.getDate()} ${getMonthName(dateIter.getMonth())}</span>
-           </div>
-           
-           <div class="study-block-container">
-               <div class="study-block-header">
-                    <span><ion-icon name="time-outline"></ion-icon> 19:00 - 22:00</span>
-               </div>
-               <div class="day-tasks">
-                   ${renderScheduledTasks(dateStr)}
-               </div>
-           </div>
-
-           <button class="add-task-btn" style="margin-top: auto;" onclick="openScheduleModal('${dateStr}', '${daysOfWeek[i]}, ${dateIter.getDate()} ${getMonthName(dateIter.getMonth())}')">
-                <ion-icon name="add-outline"></ion-icon> Добавить в план
-           </button>
-       </div>
-     `;
-    }
-    calendarHtml += `</div>
-     <!-- Modal Template -->
-     <div id="schedule-modal" class="modal-overlay hidden">
-         <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column; width: 600px;">
-             <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1rem; flex-shrink: 0;">
-                <h3 style="color:var(--primary); font-size: 1.2rem;"><ion-icon name="calendar-outline"></ion-icon> План: <span id="modal-date-display" style="color: var(--text-main);">...</span></h3>
-                <ion-icon name="close" onclick="closeScheduleModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-             </header>
-             
-             <!-- SETTINGS FOR THE NEW TASK -->
-             <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
-                <div class="modal-row" style="margin-bottom: 10px;">
-                    <div>
-                        <label class="modal-label">Начало (19:00 - 22:00)</label>
-                        <input type="time" id="modal-task-time" class="time-input" value="19:00">
-                    </div>
-                    <div>
-                        <label class="modal-label">Длительность (мин)</label>
-                        <input type="number" id="modal-task-duration" class="number-input" value="60" min="5" max="180">
-                    </div>
-                </div>
-                <div style="display: flex; gap: 20px; align-items: center;">
-                    <label class="checkbox-group">
-                        <input type="checkbox" id="modal-task-recurring"> Повторять каждую неделю
-                    </label>
-                </div>
-             </div>
-
-             <p style="color:var(--text-secondary); margin-bottom: 1rem; font-size:0.9rem; flex-shrink: 0;">Выберите Курс или Урок для добавления:</p>
-             
-             <!-- TABS -->
-             <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-shrink: 0;">
-                <button class="btn btn-primary" id="btn-tab-browse" onclick="switchModalTab('browse')" style="flex:1; padding: 0.5rem; font-size: 0.9rem; border-radius: 8px;">📚 Каталог</button>
-                <button class="btn" id="btn-tab-search" onclick="switchModalTab('search')" style="flex:1; padding: 0.5rem; font-size: 0.9rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: 8px;">🔍 Поиск</button>
-             </div>
-
-             <!-- CONTENT AREAS -->
-             <div id="modal-tab-browse" style="overflow-y:auto; flex-grow: 1; border: 1px solid rgba(255,255,255,0.05); padding: 10px; border-radius: var(--radius);">
-                 <!-- Hierarchy injected here via JS -->
-             </div>
-
-             <div id="modal-tab-search" class="hidden" style="flex-grow: 1; display:flex; flex-direction:column;">
-                 <input type="text" id="modal-search" class="check-input" style="margin-top:0; flex-shrink: 0; padding: 0.75rem;" placeholder="Название урока или курса..." onkeyup="handleModalSearch(this.value)">
-                 <div id="modal-search-results" style="margin-top: 1rem; overflow-y:auto; flex-grow: 1;"></div>
-             </div>
-             
-             <input type="hidden" id="modal-active-date" value="">
-         </div>
-     </div>
-  `;
-
-    main.innerHTML = `
-    <header style="margin-bottom: 2rem;" class="fade-in">
-        <h1>Ваша учебная неделя</h1>
-        <p style="color: var(--text-secondary);">Распределяйте уроки осознанно. Выстраивайте дисциплину.</p>
-    </header>
-    ${calendarHtml}
-  `;
+    KNOWLEDGE_BASE.areas.forEach(area => {
+        const color = area.color || 'blue';
+        const card = document.createElement('div');
+        card.className = `area-card c-${color} fade-in`;
+        card.style.minHeight = '180px';
+        card.style.marginBottom = '1.5rem';
+        card.innerHTML = `
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;"><ion-icon name="${area.icon || 'school-outline'}"></ion-icon></div>
+            <h2 style="font-size: 1.5rem; font-weight: 700;">${area.title}</h2>
+            <p style="opacity: 0.8; margin-top: 0.5rem;">Нажмите, чтобы открыть разделы</p>
+            <div class="lesson-controls" style="margin-top:auto; display:flex; gap:10px;">
+                 <button class="btn" style="background: rgba(255,255,255,0.2); border:none; color:white; padding: 5px 15px; border-radius: 8px;" onclick="event.stopPropagation(); openEditCourseModal('${area.id}')">Изменить</button>
+                 <button class="btn" style="background: rgba(255,255,255,0.2); border:none; color:white; padding: 5px 15px; border-radius: 8px;" onclick="event.stopPropagation(); deleteCustomArea('${area.id}')">Удалить</button>
+            </div>
+        `;
+        card.onclick = () => renderSubsystems(area.id);
+        cont.appendChild(card);
+    });
 }
 
 function getTasksForDate(dateStr) {
@@ -878,8 +816,9 @@ function renderModalBrowserTree() {
                     const lesson = KNOWLEDGE_BASE.lessons[lId];
                     if (!lesson) return;
                     html += `
-                    <div class="search-result-item" style="padding: 8px 10px; margin-bottom: 4px; font-size: 0.85rem; border-radius: 6px; background: rgba(0,0,0,0.2);">
-                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width: 65%;">${lesson.title}</span>
+                    <div class="search-result-item" style="padding: 10px; margin-bottom: 6px; font-size: 0.9rem; border-radius: 12px; background: rgba(255,255,255,0.03); display:flex; justify-content:space-between; align-items:center;">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width: 60%;">${lesson.title}</span>
+                        <button class="btn" onclick="addLessonToSchedule('${lId}')" style="padding: 4px 10px; background: var(--primary); font-size:0.75rem; border:none; border-radius:6px; color:white;">+ План</button>
                     </div>
                     `;
                 });
@@ -1046,7 +985,8 @@ async function addLessonToSchedule(lessonId) {
     const dateStr = document.getElementById('modal-active-date').value;
     const startTime = document.getElementById('modal-task-time').value || '19:00';
     const duration = parseInt(document.getElementById('modal-task-duration').value) || 60;
-    const recurring = document.getElementById('modal-task-recurring').checked;
+    const customTitle = document.getElementById('modal-task-custom-title').value.trim();
+    const color = getSelectedColor('task-color-picker');
 
     if (!userProgress.schedule[dateStr]) userProgress.schedule[dateStr] = [];
 
@@ -1055,12 +995,14 @@ async function addLessonToSchedule(lessonId) {
         type: 'lesson',
         startTime: startTime,
         duration: duration,
-        recurring: recurring
+        customTitle: customTitle,
+        color: color,
+        recurring: false // Recurring simplified for premium UI for now
     };
 
     userProgress.schedule[dateStr].push(taskObj);
     await saveProgressToCloud();
-    renderDashboard();
+    render();
     closeScheduleModal();
 }
 
@@ -1068,7 +1010,8 @@ async function addCourseToSchedule(courseId) {
     const dateStr = document.getElementById('modal-active-date').value;
     const startTime = document.getElementById('modal-task-time').value || '19:00';
     const duration = parseInt(document.getElementById('modal-task-duration').value) || 60;
-    const recurring = document.getElementById('modal-task-recurring').checked;
+    const customTitle = document.getElementById('modal-task-custom-title').value.trim();
+    const color = getSelectedColor('task-color-picker');
 
     if (!userProgress.schedule[dateStr]) userProgress.schedule[dateStr] = [];
 
@@ -1077,8 +1020,16 @@ async function addCourseToSchedule(courseId) {
         type: 'course',
         startTime: startTime,
         duration: duration,
-        recurring: recurring
+        customTitle: customTitle,
+        color: color,
+        recurring: false
     };
+
+    userProgress.schedule[dateStr].push(taskObj);
+    await saveProgressToCloud();
+    render();
+    closeScheduleModal();
+}
 
     userProgress.schedule[dateStr].push(taskObj);
     await saveProgressToCloud();
