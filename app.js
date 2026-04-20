@@ -38,7 +38,6 @@ window.onload = async () => {
 };
 
 async function handleLogin() {
-    alert("Начинаем вход...");
     const email = document.getElementById('username-input').value.trim();
     const password = document.getElementById('password-input').value.trim();
     const loginBtn = document.getElementById('login-btn');
@@ -50,6 +49,10 @@ async function handleLogin() {
     loginBtn.disabled = true;
     
     try {
+        if (!supabase) {
+            throw new Error("Supabase не инициализирован. Проверьте интернет или блокировщики рекламы.");
+        }
+
         // 1. Check if user exists
         const { data: authData, error: authError } = await supabase
             .from('user_auth')
@@ -82,7 +85,7 @@ async function handleLogin() {
         await initializeApp();
     } catch (err) {
         console.error("Login error:", err);
-        alert('Ошибка входа: убедитесь, что вы запустили новый SQL код в Supabase!');
+        alert('Ошибка: ' + (err.message || JSON.stringify(err)));
         loginBtn.innerText = 'Войти в систему';
         loginBtn.disabled = false;
     }
