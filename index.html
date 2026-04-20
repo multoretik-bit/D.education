@@ -7,15 +7,28 @@
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        /* Гарантируем, что фон всегда темный, а не белый */
+        body { background: #0f0f1a; margin: 0; color: white; font-family: 'Outfit', sans-serif; }
+        #loading-overlay { position: fixed; inset: 0; display: flex; justify-content: center; align-items: center; background: #0f0f1a; z-index: 9999; transition: opacity 0.5s; }
+    </style>
 </head>
 <body>
 
-    <!-- Экран Входа (скрыт если есть сессия) -->
+    <!-- Заставка загрузки (исчезнет когда JS сработает) -->
+    <div id="loading-overlay">
+        <div style="text-align: center;">
+            <div class="logo" style="font-size: 2.5rem; font-weight: bold; margin-bottom: 1rem;">d<span>Education</span></div>
+            <div style="opacity: 0.5;">Загрузка системы...</div>
+        </div>
+    </div>
+
+    <!-- Экран Входа (виден по умолчанию, если JS не скроет его) -->
     <div id="auth-screen" class="auth-container" style="display: none;">
         <div class="auth-card">
             <div class="logo">d<span>Education</span></div>
             <h2>С возвращением</h2>
-            <p>Введите Email для синхронизации прогресса</p>
+            <p>Введите Email для входа</p>
             <div class="form-group">
                 <input type="email" id="username-input" value="multoretik@gmail.com">
             </div>
@@ -43,7 +56,6 @@
             <div class="day-selector" id="day-selector"></div>
             <div class="lessons-container" id="lessons-list"></div>
             
-            <!-- FAB для добавления -->
             <div class="fab-container" onclick="openAddLessonModal()">
                 <div class="fab-btn"><ion-icon name="add"></ion-icon></div>
             </div>
