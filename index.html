@@ -5,97 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>dEducation | Система Обучения</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
+    <!-- Экран Входа -->
     <div id="auth-screen" class="auth-container">
-        <div class="auth-card fade-in-up">
+        <div class="auth-card">
             <div class="logo">d<span>Education</span></div>
-            <h2>С возвращением</h2>
-            <p>Введите Email и пароль для входа</p>
+            <h2>Вход в систему</h2>
+            <p>Введите ваш Email для восстановления доступа и прогресса</p>
             <div class="form-group">
-                <input type="email" id="username-input" placeholder="Email (например: user@mail.com)">
+                <input type="email" id="username-input" placeholder="example@gmail.com">
             </div>
-            <div class="form-group">
-                <input type="password" id="password-input" placeholder="Ваш пароль">
-            </div>
-            <button class="btn-primary" id="login-btn" onclick="handleLogin()">Войти в систему</button>
+            <button class="btn-primary" id="login-btn">Войти и синхронизировать</button>
+            <p style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-dim);">Все ваши старые сохранения будут перенесены автоматически.</p>
         </div>
     </div>
 
+    <!-- Основной интерфейс -->
     <div id="app-screen" class="app-container" style="display: none;">
         <aside>
             <div class="logo">d<span>Education</span></div>
-            
             <ul class="nav-menu">
-                <li class="nav-item">
-                    <a href="#" class="nav-link active" id="nav-home" onclick="switchView('home')">
-                        <ion-icon name="home-outline"></ion-icon> Главная
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link" id="nav-schedule" onclick="switchView('schedule')">
-                        <ion-icon name="calendar-outline"></ion-icon> План на неделю
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link" id="nav-catalog" onclick="switchView('catalog')">
-                        <ion-icon name="book-outline"></ion-icon> Каталог курсов
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link" id="nav-progress" onclick="switchView('progress')">
-                        <ion-icon name="stats-chart-outline"></ion-icon> Прогресс
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link" id="nav-profile" onclick="switchView('profile')">
-                        <ion-icon name="person-outline"></ion-icon> Профиль
-                    </a>
-                </li>
+                <li class="nav-item"><a href="#" class="nav-link active" onclick="switchView('home')"><ion-icon name="home-outline"></ion-icon> Главная</a></li>
+                <li class="nav-item"><a href="#" class="nav-link" onclick="switchView('schedule')"><ion-icon name="calendar-outline"></ion-icon> План</a></li>
+                <li class="nav-item"><a href="#" class="nav-link" onclick="switchView('catalog')"><ion-icon name="book-outline"></ion-icon> Курсы</a></li>
+                <li class="nav-item"><a href="#" class="nav-link" onclick="switchView('progress')"><ion-icon name="stats-chart-outline"></ion-icon> Прогресс</a></li>
             </ul>
-
-            <div class="sidebar-footer">
-                <div class="search-sidebar">
-                    <ion-icon name="search-outline"></ion-icon>
-                    <input type="text" placeholder="Найти урок..." id="sidebar-search">
-                </div>
-            </div>
         </aside>
 
         <main id="main-content">
             <div class="header-section">
                 <h1 id="view-title">Главная</h1>
-                <p id="view-subtitle">Сегодняшние уроки • 20 Апреля, Понедельник</p>
+                <p id="view-subtitle">Сегодняшние уроки</p>
             </div>
-
-            <div class="day-selector" id="day-selector">
-                <!-- Days injected by JS -->
-            </div>
-
-            <div class="lessons-container" id="lessons-list">
-                <!-- Lessons injected by JS -->
-            </div>
+            <div class="day-selector" id="day-selector"></div>
+            <div class="lessons-container" id="lessons-list"></div>
 
             <div class="fab-container">
-                <div class="fab-label" onclick="openAddLessonModal()">Добавить новый урок</div>
                 <div class="fab-btn" onclick="openAddLessonModal()"><ion-icon name="add"></ion-icon></div>
             </div>
         </main>
     </div>
 
-    <!-- Modals -->
     <div class="modal-overlay" id="modal-overlay">
-        <div class="modal-content" id="modal-content">
-            <!-- Content injected by JS based on modal type -->
-        </div>
+        <div class="modal-content" id="modal-content"></div>
     </div>
 
-    <!-- Data scripts -->
-    <script defer src="data_v5.js"></script>
-    <script defer src="app.js"></script>
+    <!-- Скрипты в строгом порядке -->
+    <script src="data_v5.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
