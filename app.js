@@ -383,22 +383,33 @@ async function handleLogin() {
 }
 
 // --- INITIALIZATION ---
-window.onload = async () => {
-    setupColorPickers();
-    if (!currentUser) {
-        if (typeof renderLoginAuth === 'function') renderLoginAuth();
-    } else {
-        await loadProgressFromCloud();
+window.addEventListener('DOMContentLoaded', async () => {
+    console.log("D-Education: Initialization started...");
+    try {
+        setupColorPickers();
+        if (currentUser) {
+            await loadProgressFromCloud();
+            render();
+        } else {
+            if (typeof renderLoginAuth === 'function') renderLoginAuth();
+        }
+    } catch (e) {
+        console.error("Init Error:", e);
+        // Fallback render if cloud fails
         render();
     }
-};
+});
 
 function setupColorPickers() {
-    document.querySelectorAll('.color-opt').forEach(opt => {
+    const opts = document.querySelectorAll('.color-opt');
+    if (!opts || opts.length === 0) return;
+    opts.forEach(opt => {
         opt.onclick = () => {
             const parent = opt.parentElement;
-            parent.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected'));
-            opt.classList.add('selected');
+            if (parent) {
+                parent.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+            }
         };
     });
 }
@@ -409,14 +420,19 @@ function getSelectedColor(pickerId) {
 }
 
 window.render = function() {
+    console.log("Rendering view:", currentView);
     const main = document.getElementById('main-content');
     if (!main) return;
 
-    if (currentView === 'home') renderHome();
-    else if (currentView === 'catalog') renderAreas();
-    else if (currentView === 'stats') renderStats();
-    else if (currentView === 'profile') renderProfile();
-    else if (currentView === 'schedule') renderFullSchedule(); 
+    try {
+        if (currentView === 'home') renderHome();
+        else if (currentView === 'catalog') renderAreas();
+        else if (currentView === 'stats') renderStats();
+        else if (currentView === 'profile') renderProfile();
+        else if (currentView === 'schedule') renderFullSchedule();
+    } catch (err) {
+        console.error("Render error:", err);
+    }
 };
 
 function renderStats() {
@@ -456,11 +472,18 @@ window.switchView = function(view) {
 
 function renderHome() {
     const today = new Date();
-    document.getElementById('view-title').innerText = "Главная";
-    document.getElementById('view-subtitle').style.display = 'block';
-    document.getElementById('view-subtitle').innerHTML = `Сегодняшние уроки • <span id="current-date-display">${today.getDate()} ${MONTHS_FULL[today.getMonth()]}, ${DAYS_FULL[today.getDay()]}</span>`;
-    document.getElementById('day-selector').style.display = 'flex';
-    document.getElementById('current-day-label').style.display = 'block';
+    const titleEl = document.getElementById('view-title');
+    const subtitleEl = document.getElementById('view-subtitle');
+    const daySelectorEl = document.getElementById('day-selector');
+    const dayLabelEl = document.getElementById('current-day-label');
+
+    if (titleEl) titleEl.innerText = "Главная";
+    if (subtitleEl) {
+        subtitleEl.style.display = 'block';
+        subtitleEl.innerHTML = `Сегодняшние уроки • <span id="current-date-display">${today.getDate()} ${MONTHS_FULL[today.getMonth()]}, ${DAYS_FULL[today.getDay()]}</span>`;
+    }
+    if (daySelectorEl) daySelectorEl.style.display = 'flex';
+    if (dayLabelEl) dayLabelEl.style.display = 'block';
 
     renderDaySelectorPremium();
     renderLessonsPremium();
@@ -495,7 +518,10 @@ function renderDaySelectorPremium() {
         cont.appendChild(dayDiv);
     }
 
-    document.getElementById('current-day-label').innerText = `${DAYS_FULL[selectedDate.getDay()]}, ${selectedDate.getDate()} ${MONTHS_FULL[selectedDate.getMonth()]}`;
+    const dayLabelEl = document.getElementById('current-day-label');
+    if (dayLabelEl) {
+        dayLabelEl.innerText = `${DAYS_FULL[selectedDate.getDay()]}, ${selectedDate.getDate()} ${MONTHS_FULL[selectedDate.getMonth()]}`;
+    }
 }
 
 function renderLessonsPremium() {
