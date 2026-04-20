@@ -70,6 +70,7 @@ async function checkAndMigrate() {
                     }));
                 });
                 if (sch.length > 0) {
+                    // Очищаем старое расписание перед вставкой чтобы не дублировать
                     await sb.from('user_schedule').delete().eq('user_id', window.currentUser);
                     await sb.from('user_schedule').insert(sch);
                 }
@@ -158,7 +159,6 @@ function renderArea(area) {
 
 window.renderDaySelector = function() {
     const cont = document.getElementById('day-selector');
-    if (!cont) return;
     cont.innerHTML = '';
     const today = new Date();
     const names = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
@@ -177,7 +177,6 @@ window.renderDaySelector = function() {
 
 function renderLessonsList() {
     const cont = document.getElementById('lessons-list');
-    if (!cont) return;
     cont.innerHTML = '';
     const dStr = window.selectedDate.toISOString().split('T')[0];
     const tasks = window.state.schedule.filter(s => s.task_date === dStr);
@@ -204,8 +203,7 @@ function renderLessonsList() {
 window.switchView = function(view) {
     window.currentView = view;
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    const activeEl = document.getElementById('nav-' + view);
-    if (activeEl) activeEl.classList.add('active');
+    document.getElementById('nav-' + view).classList.add('active');
     window.render();
 };
 
