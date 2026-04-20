@@ -18,23 +18,47 @@
 </head>
 <body>
     <div class="container fade-in">
-        <nav>
-            <div class="logo">🧠 D-<span>SYSTEM</span></div>
+        <!-- Sidebar -->
+        <nav id="sidebar">
+            <div class="nav-brand">d<span>Education</span></div>
             <ul class="nav-links">
-                <li><a href="#" class="active" id="nav-dashboard" onclick="renderDashboard()"><ion-icon name="calendar-outline"></ion-icon> План на неделю</a></li>
-                <li><a href="#" id="nav-catalog" onclick="renderAreas()"><ion-icon name="compass-outline"></ion-icon> Каталог Курсов</a></li>
-                <li><a href="#" id="nav-profile" onclick="renderProfile()"><ion-icon name="person-outline"></ion-icon> Профиль</a></li>
+                <li><a href="#" class="active" id="nav-home" onclick="switchView('home')"><ion-icon name="home-outline"></ion-icon> Главная</a></li>
+                <li><a href="#" id="nav-schedule" onclick="switchView('schedule')"><ion-icon name="calendar-outline"></ion-icon> План на неделю</a></li>
+                <li><a href="#" id="nav-catalog" onclick="switchView('catalog')"><ion-icon name="grid-outline"></ion-icon> Каталог курсов</a></li>
+                <li><a href="#" id="nav-stats" onclick="switchView('stats')"><ion-icon name="bar-chart-outline"></ion-icon> Прогресс</a></li>
+                <li><a href="#" id="nav-profile" onclick="switchView('profile')"><ion-icon name="person-outline"></ion-icon> Профиль</a></li>
             </ul>
-            <div style="margin-top: auto; position: relative;">
-                <input type="text" id="search-input" class="search-box" style="width: 100%; padding-left: 2.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;" placeholder="Найти урок..." onkeyup="handleSearch(event)">
-                <ion-icon name="search-outline" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></ion-icon>
+
+            <div class="sidebar-search">
+                <div class="search-input-wrapper">
+                    <ion-icon name="search-outline"></ion-icon>
+                    <input type="text" placeholder="Найти урок..." onkeyup="handleSearch(event)">
+                </div>
             </div>
         </nav>
 
-        <!-- MAIN VIEW (DASHBOARD OR LESSON) -->
+        <!-- Main Content -->
         <main id="main-content">
-            <!-- Dynamic content injected here -->
+            <div class="header-section">
+                <h1 id="view-title">Главная</h1>
+                <p id="view-subtitle">Сегодняшние уроки • <span id="current-date-display">...</span></p>
+            </div>
+
+            <div id="day-selector" class="day-selector-horizontal">
+                <!-- Days will be injected here -->
+            </div>
+
+            <h2 id="current-day-label" style="margin: 1.5rem 0; font-size: 1.5rem;">...</h2>
+
+            <div id="lessons-list">
+                <!-- Lessons will be injected here -->
+            </div>
         </main>
+
+        <!-- Floating Action Button -->
+        <div class="premium-fab" onclick="openAddLessonModal()">
+            <ion-icon name="add"></ion-icon>
+        </div>
     </div>
 
     <!-- Scripts -->

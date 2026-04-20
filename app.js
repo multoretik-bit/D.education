@@ -6,8 +6,15 @@ const supabaseKey = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
 const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 // State Management
-let currentView = 'dashboard';
+let currentView = 'home';
 let currentUser = localStorage.getItem('d_edu_user');
+
+const DAYS_SHORT = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
+const MONTHS_SHORT = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+const DAYS_FULL = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+const MONTHS_FULL = ['Января', 'Февраля', 'Марта', 'Апреля', 'Мая', 'Июня', 'Июля', 'Августа', 'Сентября', 'Октября', 'Ноября', 'Декабря'];
+
+let selectedDate = new Date();
 let userProgress = {
     lessons: {},
     skills: {},
@@ -393,33 +400,151 @@ async function handleLogin() {
     currentUser = name;
     localStorage.setItem('d_edu_user', currentUser);
     await loadProgressFromCloud();
-    renderDashboard();
+    render();
 }
 
-// Initial Render OVERRIDE
+// Initial Render
 window.onload = async () => {
     if (!currentUser) {
-        renderLoginAuth();
+        if (typeof renderLoginAuth === 'function') renderLoginAuth();
     } else {
         await loadProgressFromCloud();
-        renderDashboard();
+        render();
     }
+};
+
+window.render = function() {
+    const main = document.getElementById('main-content');
+    if (!main) return;
+
+    if (currentView === 'home') renderHome();
+    else if (currentView === 'catalog') renderAreas();
+    else if (currentView === 'profile') renderProfile();
+    else if (currentView === 'schedule') renderDashboard(); 
+};
+
+window.switchView = function(view) {
+    currentView = view;
+    document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+    const activeLink = document.getElementById('nav-' + view);
+    if (activeLink) activeLink.classList.add('active');
+    render();
+}
+
+function renderHome() {
+    const today = new Date();
+    document.getElementById('view-title').innerText = "Главная";
+    document.getElementById('view-subtitle').innerHTML = `Сегодняшние уроки • <span id="current-date-display">${today.getDate()} ${MONTHS_FULL[today.getMonth()]}, ${DAYS_FULL[today.getDay()]}</span>`;
+
+    renderDaySelectorPremium();
+    renderLessonsPremium();
+}
+
+function renderDaySelectorPremium() {
+    const cont = document.getElementById('day-selector');
+    if (!cont) return;
+    cont.innerHTML = '';
     
-    // Auto-refresh Dashboard every minute for LIVE progress
-    setInterval(() => {
-        if (currentView === 'dashboard') {
-            const todayCol = document.querySelector('.current-day .day-tasks');
-            if (todayCol) {
-                const now = new Date();
-                const y = now.getFullYear();
-                const m = String(now.getMonth() + 1).padStart(2, '0');
-                const d = String(now.getDate()).padStart(2, '0');
-                const todayStr = `${y}-${m}-${d}`;
-                todayCol.innerHTML = renderScheduledTasks(todayStr);
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(startOfWeek);
+        d.setDate(startOfWeek.getDate() + i);
+        
+        const isActive = d.toDateString() === selectedDate.toDateString();
+        const dayDiv = document.createElement('div');
+        dayDiv.className = `day-item ${isActive ? 'active' : ''}`;
+        dayDiv.innerHTML = `
+            <div class="day-short">${DAYS_SHORT[d.getDay()]}</div>
+            <div class="day-full">${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}</div>
+        `;
+        dayDiv.onclick = () => {
+            selectedDate = d;
+            render();
+        };
+        cont.appendChild(dayDiv);
+    }
+
+    document.getElementById('current-day-label').innerText = `${DAYS_FULL[selectedDate.getDay()]}, ${selectedDate.getDate()} ${MONTHS_FULL[selectedDate.getMonth()]}`;
+}
+
+function renderLessonsPremium() {
+    const cont = document.getElementById('lessons-list');
+    if (!cont) return;
+    cont.innerHTML = '';
+    
+    const y = selectedDate.getFullYear();
+    const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const d = String(selectedDate.getDate()).padStart(2, '0');
+    const dStr = `${y}-${m}-${d}`;
+    
+    const tasks = getTasksForDate(dStr);
+
+    if (tasks.length === 0) {
+        cont.innerHTML = '<div style="text-align:center; padding:5rem; opacity:0.2; font-size: 1.2rem;">На этот день планов нет.</div>';
+        return;
+    }
+
+    tasks.forEach((t, i) => {
+        let title = "Урок";
+        let desc = "Тема: Грамматика и практика.";
+        let progress = 0;
+
+        if (t.type === 'course') {
+            const area = KNOWLEDGE_BASE.areas.find(a => a.id === t.id);
+            title = area ? area.title : "Курс";
+            desc = "Изучение основного блока знаний";
+        } else {
+            const lesson = KNOWLEDGE_BASE.lessons[t.id];
+            if (lesson) {
+                title = lesson.title;
+                desc = lesson.description || "Тема: Грамматика и практика.";
             }
         }
-    }, 60000);
-};
+        
+        if (userProgress.lessons[t.id]) progress = userProgress.lessons[t.id].progress || 0;
+
+        const colorClass = i % 2 === 0 ? 'purple' : 'blue';
+        const card = document.createElement('div');
+        card.className = `premium-lesson-card ${colorClass} fade-in`;
+        
+        const endTime = addMinutes(t.startTime, t.duration);
+
+        card.innerHTML = `
+            <div class="lesson-meta">
+                <h2 class="lesson-title-big">${title}</h2>
+                <div class="lesson-time-badge">
+                    <ion-icon name="time-outline"></ion-icon>
+                    ${t.startTime} - ${endTime}
+                </div>
+            </div>
+            <p class="lesson-desc-text">${desc}</p>
+            <div class="lesson-progress-row">
+                <div class="progress-track"><div class="progress-bar-done" style="width: ${progress}%"></div></div>
+                <span class="progress-percent-label">${progress}%</span>
+            </div>
+            <div class="lesson-card-footer">
+                <div class="lesson-controls">
+                    <div class="control-btn-icon"><ion-icon name="square-outline"></ion-icon></div>
+                    <div class="control-btn-icon"><ion-icon name="stopwatch-outline"></ion-icon></div>
+                    <div class="control-btn-icon" onclick="deleteTaskFromSchedule('${dStr}', '${t.id}', '${t.startTime}')"><ion-icon name="trash-outline"></ion-icon></div>
+                </div>
+                <button class="btn-start-premium" onclick="startLesson('${t.id}')">Начать урок</button>
+            </div>
+        `;
+        cont.appendChild(card);
+    });
+}
+
+function addMinutes(time, mins) {
+    const [h, m] = time.split(':').map(Number);
+    const date = new Date(0, 0, 0, h, m + Number(mins));
+    return date.toTimeString().slice(0, 5);
+}
 
 // --- NAVIGATION & RENDERING ---
 
