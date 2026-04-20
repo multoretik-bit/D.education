@@ -3,7 +3,17 @@
 // --- SUPABASE CONFIG ---
 const supabaseUrl = 'https://jjjkypymutcvrlngyhtt.supabase.co';
 const supabaseKey = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+let supabase;
+
+try {
+    if (window.supabase) {
+        supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    } else {
+        console.error("Supabase library not found!");
+    }
+} catch (e) {
+    console.error("Supabase init error:", e);
+}
 
 // --- STATE MANAGEMENT ---
 let currentUser = localStorage.getItem('d_edu_user');
@@ -28,6 +38,7 @@ window.onload = async () => {
 };
 
 async function handleLogin() {
+    alert("Начинаем вход...");
     const email = document.getElementById('username-input').value.trim();
     const password = document.getElementById('password-input').value.trim();
     const loginBtn = document.getElementById('login-btn');
