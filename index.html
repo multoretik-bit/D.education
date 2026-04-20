@@ -3,221 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D-Education | Финансовая грамотность</title>
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <title>dEducation | Система Обучения</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- Ionicons for icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    
-    <!-- Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div class="container fade-in">
-        <nav>
-            <div class="logo">🧠 D-<span>SYSTEM</span></div>
-            <ul class="nav-links">
-                <li><a href="#" class="active" id="nav-dashboard" onclick="renderDashboard()"><ion-icon name="calendar-outline"></ion-icon> План на неделю</a></li>
-                <li><a href="#" id="nav-catalog" onclick="renderAreas()"><ion-icon name="compass-outline"></ion-icon> Каталог Курсов</a></li>
-                <li><a href="#" id="nav-profile" onclick="renderProfile()"><ion-icon name="person-outline"></ion-icon> Профиль</a></li>
-            </ul>
-            <div style="margin-top: auto; position: relative;">
-                <input type="text" id="search-input" class="search-box" style="width: 100%; padding-left: 2.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;" placeholder="Найти урок..." onkeyup="handleSearch(event)">
-                <ion-icon name="search-outline" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></ion-icon>
-            </div>
-        </nav>
 
-        <!-- MAIN VIEW (DASHBOARD OR LESSON) -->
+    <div id="auth-screen" class="auth-container">
+        <div class="auth-card fade-in-up">
+            <div class="logo">d<span>Education</span></div>
+            <h2>С возвращением</h2>
+            <p>Введите Email для синхронизации вашего прогресса</p>
+            <div class="form-group">
+                <input type="email" id="username-input" placeholder="example@gmail.com">
+            </div>
+            <button class="btn-primary" onclick="handleLogin()">Войти в систему</button>
+        </div>
+    </div>
+
+    <div id="app-screen" class="app-container" style="display: none;">
+        <aside>
+            <div class="logo">d<span>Education</span></div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#" class="nav-link active" id="nav-home" onclick="switchView('home')">
+                        <ion-icon name="home-outline"></ion-icon> Главная
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" id="nav-schedule" onclick="switchView('schedule')">
+                        <ion-icon name="calendar-outline"></ion-icon> План на неделю
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" id="nav-catalog" onclick="switchView('catalog')">
+                        <ion-icon name="book-outline"></ion-icon> Каталог курсов
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" id="nav-progress" onclick="switchView('progress')">
+                        <ion-icon name="stats-chart-outline"></ion-icon> Прогресс
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" id="nav-profile" onclick="switchView('profile')">
+                        <ion-icon name="person-outline"></ion-icon> Профиль
+                    </a>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="search-sidebar">
+                    <ion-icon name="search-outline"></ion-icon>
+                    <input type="text" placeholder="Найти урок..." id="sidebar-search">
+                </div>
+            </div>
+        </aside>
+
         <main id="main-content">
-            <!-- Dynamic content injected here -->
+            <div class="header-section">
+                <h1 id="view-title">Главная</h1>
+                <p id="view-subtitle">Сегодняшние уроки • 20 Апреля, Понедельник</p>
+            </div>
+
+            <div class="day-selector" id="day-selector">
+                <!-- Days injected by JS -->
+            </div>
+
+            <div class="lessons-container" id="lessons-list">
+                <!-- Lessons injected by JS -->
+            </div>
+
+            <div class="fab-container">
+                <div class="fab-label" onclick="openAddLessonModal()">Добавить новый урок</div>
+                <div class="fab-btn" onclick="openAddLessonModal()"><ion-icon name="add"></ion-icon></div>
+            </div>
         </main>
     </div>
 
-    <!-- Scripts -->
-    <!-- Custom Lesson Modal -->
-    <div id="custom-lesson-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 500px;">
-            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
-                <h3 style="color:var(--primary);"><ion-icon name="create-outline"></ion-icon> Создать свой урок</h3>
-                <ion-icon name="close" onclick="closeCustomLessonModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-            </header>
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <div>
-                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 5px;">Название урока</label>
-                    <input type="text" id="custom-lesson-title" class="check-input" style="margin-top: 0;" placeholder="Название (например: Глава 1 из Финансов...)">
-                </div>
-                <div>
-                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 5px;">Суть / Заметки (то, что нужно запомнить)</label>
-                    <textarea id="custom-lesson-notes" class="check-input" style="margin-top: 0; min-height: 150px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-main); padding: 10px; font-family: inherit; width: 100%; box-sizing: border-box;" placeholder="Напишите здесь то, что вы хотите выучить. В будущем этот текст появится как карточка для повторения."></textarea>
-                </div>
-                <input type="hidden" id="custom-lesson-target-skill" value="">
-                <button class="btn btn-primary" style="margin-top: 1rem;" onclick="saveCustomLesson()">Сохранить урок в базу</button>
-            </div>
+    <!-- Modals -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal-content" id="modal-content">
+            <!-- Content injected by JS based on modal type -->
         </div>
     </div>
 
-    <!-- Create Course Modal -->
-    <div id="create-course-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 400px;">
-            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
-                <h3 style="color:var(--primary);"><ion-icon name="add-circle-outline"></ion-icon> Новый курс</h3>
-                <ion-icon name="close" onclick="closeCreateCourseModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-            </header>
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <input type="hidden" id="edit-course-id" value="">
-                <div>
-                    <label class="modal-label">Название вашего курса</label>
-                    <input type="text" id="course-title-input" class="check-input" style="margin-top: 0;" placeholder="Например: Мой Английский">
-                </div>
-                <div>
-                    <label class="modal-label">Ссылка на фото (URL)</label>
-                    <input type="text" id="course-photo-input" class="check-input" style="margin-top: 0;" placeholder="Вставьте ссылку на картинку...">
-                </div>
-                <div>
-                    <label class="modal-label">Иконка (название IonIcon)</label>
-                    <input type="text" id="course-icon-input" class="check-input" style="margin-top: 0;" value="school-outline" placeholder="book-outline, fitness-outline...">
-                </div>
-                <button class="btn btn-primary" id="save-course-btn" onclick="saveCustomCourse()">Создать курс</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Create Chapter Modal -->
-    <div id="create-chapter-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 400px;">
-            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
-                <h3 style="color:var(--secondary);"><ion-icon name="folder-open-outline"></ion-icon> Новая глава</h3>
-                <ion-icon name="close" onclick="closeCreateChapterModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-            </header>
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <div>
-                    <label class="modal-label">Название главы (раздела)</label>
-                    <input type="text" id="chapter-title-input" class="check-input" style="margin-top: 0;" placeholder="Например: Грамматика">
-                </div>
-                <input type="hidden" id="chapter-target-area" value="">
-                <button class="btn btn-primary" style="background: var(--secondary); box-shadow: 0 5px 15px rgba(0, 229, 255, 0.2);" onclick="saveCustomChapter()">Создать главу</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Anki Card Modal -->
-    <div id="anki-card-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 500px;">
-            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
-                <h3 style="color:var(--primary);"><ion-icon name="albums-outline"></ion-icon> Новая карточка</h3>
-                <ion-icon name="close" onclick="closeAnkiCardModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-            </header>
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <div>
-                    <label class="modal-label">Вопрос / То, что нужно вспомнить (Лицевая сторона)</label>
-                    <textarea id="anki-front-input" class="check-input" style="margin-top: 0; min-height: 100px;" placeholder="Например: В каком году закончилась 1-я мировая?"></textarea>
-                </div>
-                <div>
-                    <label class="modal-label">Ответ / Слово / Дата (Обратная сторона)</label>
-                    <input type="text" id="anki-back-input" class="check-input" style="margin-top: 0; min-height: auto;" placeholder="Например: 1918 или Apple">
-                </div>
-                <div>
-                    <label class="modal-label">Картинка (URL или Загрузить с устройства)</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="text" id="anki-image-input" class="check-input" style="margin-top: 0; min-height: auto; flex: 1;" placeholder="https://example.com/image.jpg">
-                        <label for="anki-image-file" class="btn" style="padding: 0.6rem; background: var(--secondary); margin-top: 0; min-height: auto; display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; box-shadow: none;">
-                            <ion-icon name="image-outline" style="font-size: 1.2rem;"></ion-icon>
-                        </label>
-                        <input type="file" id="anki-image-file" accept="image/*" style="display: none;" onchange="handleAnkiImageUpload(this)">
-                    </div>
-                    <div id="anki-image-preview" style="margin-top: 10px; display: none;">
-                        <img id="anki-preview-img" src="" style="max-width: 100%; max-height: 100px; border-radius: 8px;">
-                    </div>
-                </div>
-                <div>
-                    <label class="modal-label">Папка</label>
-                    <select id="anki-folder-select" class="check-input" style="margin-top: 0; min-height: auto; appearance: none; background: rgba(0,0,0,0.3);">
-                        <option value="">Без папки</option>
-                    </select>
-                </div>
-                <input type="hidden" id="anki-target-area" value="">
-                <input type="hidden" id="edit-anki-card-id" value="">
-                <button class="btn btn-primary" onclick="saveAnkiCard()">Сохранить карточку</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Anki Folders Modal -->
-    <div id="anki-folders-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 400px;">
-            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
-                <h3 style="color:var(--secondary);"><ion-icon name="folder-outline"></ion-icon> Управление папками</h3>
-                <ion-icon name="close" onclick="closeAnkiFoldersModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-            </header>
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="anki-new-folder-title" class="check-input" style="margin-top: 0; min-height: auto;" placeholder="Новая папка...">
-                    <button class="btn btn-primary" style="padding: 0 1rem; background: var(--secondary); box-shadow: none;" onclick="createAnkiFolder()"><ion-icon name="add"></ion-icon></button>
-                </div>
-                <div id="anki-folders-list" style="max-height: 250px; overflow-y: auto; margin-top: 1rem;">
-                    <!-- Folders list will be injected here -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Scripts -->
-    <script src="curriculum.js"></script>
-    <script src="curriculum_meta.js"></script>
-    <script src="content_meta_b0.js"></script>
-    <script src="content_meta_b1.js"></script>
-    <script src="content_meta_b2.js"></script>
-    <script src="content_meta_b3.js"></script>
-    <script src="content_meta_b4.js"></script>
-    <script src="content_meta_b5.js"></script>
-    <script src="content_meta_b6.js"></script>
-    <script src="content_meta_b7.js"></script>
-    <script src="content_meta_b8.js"></script>
-    <script src="content_meta_b9.js"></script>
-    <script src="content_meta_b10.js"></script>
-    <script src="content_meta_b11.js"></script>
-    <script src="content_meta_b12.js"></script>
-    <script src="content_meta_b13.js"></script>
-    <script src="content_meta_b14.js"></script>
-    <script src="content_meta_b15.js"></script>
-    <script src="content_meta_b16.js"></script>
-    <script src="content_meta_b17.js"></script>
-    <script src="content_meta_b18.js"></script>
-    <script src="content_meta_b19.js"></script>
-    <script src="content_meta_b20.js"></script>
-    <script src="content_meta_b21.js"></script>
-    <script src="content_meta_b22.js"></script>
-    <script src="content_b0.js"></script>
-    <script src="content_b1.js"></script>
-    <script src="content_b2.js"></script>
-    <script src="content_b3.js"></script>
-    <script src="content_b4.js"></script>
-    <script src="content_b5.js"></script>
-    <script src="content_b6.js"></script>
-    <script src="content_b7.js"></script>
-    <script src="content_b8.js"></script>
-    <script src="content_b9.js"></script>
-    <script src="content_b10.js"></script>
-    <script src="content_b11.js"></script>
-    <script src="content_b12.js"></script>
-    <script src="content_b13.js"></script>
-    <script src="content_b14.js"></script>
-    <script src="content_b15.js"></script>
-    <script src="content_b16.js"></script>
-    <script src="content_b17.js"></script>
-    <script src="content_b18.js"></script>
-    <script src="content_b19.js"></script>
-    <script src="content_b20.js"></script>
-    <script src="content_b21.js"></script>
-    <script src="content_b22.js"></script>
-    <script src="content_b23.js"></script>
-    <script src="content_b24.js"></script>
-    <script src="content_b25.js"></script>
-    <script src="build_data.js"></script>
+    <!-- Data scripts -->
+    <script src="data_v5.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
