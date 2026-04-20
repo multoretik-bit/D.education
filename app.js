@@ -449,8 +449,8 @@ window.render = function() {
     if (!main) return;
 
     try {
-        if (currentView === 'home') renderHome();
-        else if (currentView === 'catalog') renderAreas();
+        if (currentView === 'catalog') renderAreas();
+        else if (currentView === 'home') renderHome(); // Schedule dashboard
         else if (currentView === 'stats') renderStats();
         else if (currentView === 'profile') renderProfile();
         else if (currentView === 'schedule') renderFullSchedule();
@@ -660,15 +660,23 @@ function updateNavActive(id) {
 
 function renderAreas() {
     currentView = 'catalog';
+    updateNavActive('nav-catalog');
     const cont = document.getElementById('lessons-list');
+    const titleEl = document.getElementById('view-title');
+    const subtitleEl = document.getElementById('view-subtitle');
+    const daySelectorEl = document.getElementById('day-selector');
+    const dayLabelEl = document.getElementById('current-day-label');
+
+    if (titleEl) titleEl.innerText = "Каталог курсов";
+    if (subtitleEl) {
+        subtitleEl.style.display = 'block';
+        subtitleEl.innerText = "Выберите блок обучения для глубокого погружения.";
+    }
+    if (daySelectorEl) daySelectorEl.style.display = 'none';
+    if (dayLabelEl) dayLabelEl.style.display = 'none';
     if (!cont) return;
     cont.innerHTML = '';
     
-    document.getElementById('view-title').innerText = "Каталог курсов";
-    document.getElementById('view-subtitle').innerHTML = "Выберите блок обучения для глубокого погружения.";
-    document.getElementById('day-selector').style.display = 'none';
-    document.getElementById('current-day-label').style.display = 'none';
-
     KNOWLEDGE_BASE.areas.forEach(area => {
         const color = area.color || 'blue';
         const card = document.createElement('div');
@@ -678,13 +686,88 @@ function renderAreas() {
         card.innerHTML = `
             <div style="font-size: 2.5rem; margin-bottom: 1rem;"><ion-icon name="${area.icon || 'school-outline'}"></ion-icon></div>
             <h2 style="font-size: 1.5rem; font-weight: 700;">${area.title}</h2>
-            <p style="opacity: 0.8; margin-top: 0.5rem;">Нажмите, чтобы открыть разделы</p>
+            <p style="opacity: 0.8; margin-top: 0.5rem;">${area.subsystems.length} разделов</p>
             <div class="lesson-controls" style="margin-top:auto; display:flex; gap:10px;">
                  <button class="btn" style="background: rgba(255,255,255,0.2); border:none; color:white; padding: 5px 15px; border-radius: 8px;" onclick="event.stopPropagation(); openEditCourseModal('${area.id}')">Изменить</button>
-                 <button class="btn" style="background: rgba(255,255,255,0.2); border:none; color:white; padding: 5px 15px; border-radius: 8px;" onclick="event.stopPropagation(); deleteCustomArea('${area.id}')">Удалить</button>
             </div>
         `;
         card.onclick = () => renderSubsystems(area.id);
+        cont.appendChild(card);
+    });
+}
+
+function renderSubsystems(areaId) {
+    const area = KNOWLEDGE_BASE.areas.find(a => a.id === areaId);
+    if (!area) return;
+    const cont = document.getElementById('lessons-list');
+    const subtitleEl = document.getElementById('view-subtitle');
+    if (subtitleEl) subtitleEl.innerHTML = `<a href="#" onclick="renderAreas()" style="color:var(--primary); text-decoration:none;">← Назад к каталогу</a> • ${area.title}`;
+    
+    if (!cont) return;
+    cont.innerHTML = '';
+
+    area.subsystems.forEach(subId => {
+        const sub = KNOWLEDGE_BASE.subsystems[subId];
+        if (!sub) return;
+        const card = document.createElement('div');
+        card.className = `area-card c-purple fade-in`;
+        card.style.padding = '1.5rem';
+        card.style.marginBottom = '1rem';
+        card.innerHTML = `
+            <h3 style="font-size: 1.2rem;">${sub.title}</h3>
+            <p style="opacity: 0.7; font-size: 0.9rem;">${sub.skills.length} тем</p>
+        `;
+        card.onclick = () => renderSkills(subId);
+        cont.appendChild(card);
+    });
+}
+
+function renderSkills(subId) {
+    const sub = KNOWLEDGE_BASE.subsystems[subId];
+    if (!sub) return;
+    const cont = document.getElementById('lessons-list');
+    const subtitleEl = document.getElementById('view-subtitle');
+    if (subtitleEl) subtitleEl.innerHTML = `<a href="#" onclick="renderSubsystems('${sub.areaId}')" style="color:var(--primary); text-decoration:none;">← К главам</a> • ${sub.title}`;
+    
+    if (!cont) return;
+    cont.innerHTML = '';
+
+    sub.skills.forEach(skillId => {
+        const skill = KNOWLEDGE_BASE.skills[skillId];
+        if (!skill) return;
+        const card = document.createElement('div');
+        card.className = `area-card c-blue fade-in`;
+        card.style.padding = '1.2rem';
+        card.style.marginBottom = '1rem';
+        card.innerHTML = `
+            <h3 style="font-size: 1.1rem;">${skill.title}</h3>
+            <p style="opacity: 0.7; font-size: 0.8rem;">${skill.lessons.length} уроков</p>
+        `;
+        card.onclick = () => renderLessonsGrid(skillId);
+        cont.appendChild(card);
+    });
+}
+
+function renderLessonsGrid(skillId) {
+    const skill = KNOWLEDGE_BASE.skills[skillId];
+    if (!skill) return;
+    const cont = document.getElementById('lessons-list');
+    const subtitleEl = document.getElementById('view-subtitle');
+    if (subtitleEl) subtitleEl.innerHTML = `<a href="#" onclick="renderSkills('${skill.subsystemId}')" style="color:var(--primary); text-decoration:none;">← К темам</a> • ${skill.title}`;
+    
+    if (!cont) return;
+    cont.innerHTML = '';
+
+    skill.lessons.forEach(lId => {
+        const lesson = KNOWLEDGE_BASE.lessons[lId];
+        if (!lesson) return;
+        const card = document.createElement('div');
+        card.className = `premium-lesson-card c-purple fade-in`;
+        card.style.marginBottom = '1rem';
+        card.innerHTML = `
+            <h3 style="font-size: 1.1rem;">${lesson.title}</h3>
+            <button class="btn-start-premium" style="margin-top:1rem;" onclick="startLesson('${lId}')">Начать изучение</button>
+        `;
         cont.appendChild(card);
     });
 }
