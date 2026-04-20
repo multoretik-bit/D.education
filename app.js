@@ -383,7 +383,7 @@ async function handleLogin() {
 }
 
 // --- INITIALIZATION ---
-window.addEventListener('DOMContentLoaded', async () => {
+async function initApp() {
     console.log("D-Education: Initialization started...");
     try {
         setupColorPickers();
@@ -395,10 +395,15 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (e) {
         console.error("Init Error:", e);
-        // Fallback render if cloud fails
-        render();
+        render(); // Fallback
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
 
 function setupColorPickers() {
     const opts = document.querySelectorAll('.color-opt');
@@ -547,25 +552,31 @@ function renderLessonsPremium() {
         let progress = 0;
         let color = t.color || (i % 2 === 0 ? 'purple' : 'blue');
 
-        if (t.type === 'course') {
-            const area = KNOWLEDGE_BASE.areas.find(a => a.id === t.id);
-            if (area) {
-                if (!t.customTitle) title = area.title;
-                desc = "Изучение основного блока знаний";
-                if (!t.color) color = area.color || 'blue';
-            }
-        } else {
-            const lesson = KNOWLEDGE_BASE.lessons[t.id];
-            if (lesson) {
-                if (!t.customTitle) title = lesson.title;
-                desc = lesson.description || "Тема: Практика и теория.";
+        // Check if KNOWLEDGE_BASE is loaded
+        if (typeof KNOWLEDGE_BASE !== 'undefined') {
+            if (t.type === 'course') {
+                const area = KNOWLEDGE_BASE.areas.find(a => a.id === t.id);
+                if (area) {
+                    if (!t.customTitle) title = area.title;
+                    desc = "Изучение основного блока знаний";
+                    if (!t.color) color = area.color || 'blue';
+                }
+            } else {
+                const lesson = KNOWLEDGE_BASE.lessons[t.id];
+                if (lesson) {
+                    if (!t.customTitle) title = lesson.title;
+                    desc = lesson.description || "Тема: Практика и теория.";
+                }
             }
         }
         
-        if (userProgress.lessons[t.id]) progress = userProgress.lessons[t.id].progress || 0;
+        if (userProgress.lessons && userProgress.lessons[t.id]) {
+            progress = userProgress.lessons[t.id].progress || 0;
+        }
 
         const card = document.createElement('div');
         card.className = `premium-lesson-card c-${color} fade-in`;
+        card.style.marginBottom = '1.5rem';
         
         const endTime = addMinutes(t.startTime, t.duration);
 
