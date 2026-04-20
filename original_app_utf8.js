@@ -1,4 +1,4 @@
-/* D-Education Platform Logic FINAL RECOVERY */
+﻿/* D-Education Platform Logic FINAL RECOVERY */
 
 const URL = 'https://jjjkypymutcvrlngyhtt.supabase.co';
 const KEY = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
@@ -8,7 +8,7 @@ window.state = { profile: { xp: 0, coins: 0, streak: 0 }, lessons: {}, schedule:
 window.selectedDate = new Date();
 window.currentView = 'home';
 
-// --- ИНИЦИАЛИЗАЦИЯ ---
+// --- ╨Ш╨Э╨Ш╨ж╨Ш╨Р╨Ы╨Ш╨Ч╨Р╨ж╨Ш╨п ---
 window.onload = async () => {
     if (window.supabase) sb = window.supabase.createClient(URL, KEY);
     
@@ -23,7 +23,7 @@ window.onload = async () => {
 
 window.handleLogin = async function() {
     const email = document.getElementById('username-input').value.trim();
-    if (!email) return alert("Введите Email");
+    if (!email) return alert("╨Т╨▓╨╡╨┤╨╕╤В╨╡ Email");
     
     localStorage.setItem('d_edu_user', email);
     window.currentUser = email;
@@ -36,7 +36,7 @@ window.initializeApp = async function() {
     
     if (!sb) sb = window.supabase.createClient(URL, KEY);
 
-    // ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА СТАРЫХ ДАННЫХ ПРИ КАЖДОМ ВХОДЕ
+    // ╨Я╨а╨Ш╨Э╨г╨Ф╨Ш╨в╨Х╨Ы╨м╨Э╨Р╨п ╨Я╨а╨Ю╨Т╨Х╨а╨Ъ╨Р ╨б╨в╨Р╨а╨л╨е ╨Ф╨Р╨Э╨Э╨л╨е ╨Я╨а╨Ш ╨Ъ╨Р╨Ц╨Ф╨Ю╨Ь ╨Т╨е╨Ю╨Ф╨Х
     await checkAndMigrate();
     
     await loadData();
@@ -51,16 +51,16 @@ async function checkAndMigrate() {
             console.log("Legacy data found! Migrating everything...");
             const d = old.data;
             
-            // 1. Профиль
+            // 1. ╨Я╤А╨╛╤Д╨╕╨╗╤М
             if (d.stats) await sb.from('user_profiles').upsert({ user_id: window.currentUser, xp: d.stats.totalXp||0, coins: d.stats.coins||0, streak: d.stats.streak||0 });
             
-            // 2. Уроки
+            // 2. ╨г╤А╨╛╨║╨╕
             if (d.lessons) {
                 const ent = Object.entries(d.lessons).map(([id, v]) => ({ user_id: window.currentUser, lesson_id: id, status: v.status||'completed', progress: v.progress||100 }));
                 if (ent.length > 0) await sb.from('user_lessons').upsert(ent, { onConflict: 'user_id, lesson_id' });
             }
             
-            // 3. Расписание
+            // 3. ╨а╨░╤Б╨┐╨╕╤Б╨░╨╜╨╕╨╡
             if (d.schedule) {
                 const sch = [];
                 Object.entries(d.schedule).forEach(([date, tasks]) => {
@@ -70,6 +70,7 @@ async function checkAndMigrate() {
                     }));
                 });
                 if (sch.length > 0) {
+                    // ╨Ю╤З╨╕╤Й╨░╨╡╨╝ ╤Б╤В╨░╤А╨╛╨╡ ╤А╨░╤Б╨┐╨╕╤Б╨░╨╜╨╕╨╡ ╨┐╨╡╤А╨╡╨┤ ╨▓╤Б╤В╨░╨▓╨║╨╛╨╣ ╤З╤В╨╛╨▒╤Л ╨╜╨╡ ╨┤╤Г╨▒╨╗╨╕╤А╨╛╨▓╨░╤В╤М
                     await sb.from('user_schedule').delete().eq('user_id', window.currentUser);
                     await sb.from('user_schedule').insert(sch);
                 }
@@ -97,21 +98,21 @@ async function loadData() {
 window.render = function() {
     const prof = window.state.profile;
     const level = Math.floor((prof.xp || 0) / 100) + 1;
-    document.getElementById('view-subtitle').innerText = `Уровень ${level} • ${prof.xp || 0} XP • ${prof.coins || 0} Монет`;
+    document.getElementById('view-subtitle').innerText = `╨г╤А╨╛╨▓╨╡╨╜╤М ${level} тАв ${prof.xp || 0} XP тАв ${prof.coins || 0} ╨Ь╨╛╨╜╨╡╤В`;
 
     if (window.currentView === 'home') renderHome();
     else if (window.currentView === 'catalog') renderCatalog();
 };
 
 function renderHome() {
-    document.getElementById('view-title').innerText = "Главная";
+    document.getElementById('view-title').innerText = "╨У╨╗╨░╨▓╨╜╨░╤П";
     document.getElementById('day-selector').style.display = 'flex';
     renderDaySelector();
     renderLessonsList();
 }
 
 function renderCatalog() {
-    document.getElementById('view-title').innerText = "Мои Блоки";
+    document.getElementById('view-title').innerText = "╨Ь╨╛╨╕ ╨С╨╗╨╛╨║╨╕";
     document.getElementById('day-selector').style.display = 'none';
     const cont = document.getElementById('lessons-list');
     cont.innerHTML = '';
@@ -120,7 +121,7 @@ function renderCatalog() {
         KNOWLEDGE_BASE.areas.forEach(area => {
             const card = document.createElement('div');
             card.className = "lesson-card blue";
-            card.innerHTML = `<div class="lesson-header"><strong>${area.title}</strong></div><p>Нажмите для просмотра</p>`;
+            card.innerHTML = `<div class="lesson-header"><strong>${area.title}</strong></div><p>╨Э╨░╨╢╨╝╨╕╤В╨╡ ╨┤╨╗╤П ╨┐╤А╨╛╤Б╨╝╨╛╤В╤А╨░</p>`;
             card.onclick = () => renderArea(area);
             cont.appendChild(card);
         });
@@ -129,7 +130,7 @@ function renderCatalog() {
 
 function renderArea(area) {
     const cont = document.getElementById('lessons-list');
-    cont.innerHTML = `<button class="btn-primary" style="margin-bottom:1rem;" onclick="renderCatalog()">Назад к блокам</button>`;
+    cont.innerHTML = `<button class="btn-primary" style="margin-bottom:1rem;" onclick="renderCatalog()">╨Э╨░╨╖╨░╨┤ ╨║ ╨▒╨╗╨╛╨║╨░╨╝</button>`;
     
     area.subsystems.forEach(sub => {
         const div = document.createElement('div');
@@ -146,7 +147,7 @@ function renderArea(area) {
                     lCard.className = "lesson-card purple";
                     const prog = window.state.lessons[lId]?.progress || 0;
                     lCard.innerHTML = `<div style="display:flex;justify-content:space-between;"><span>${lesson.title}</span><span>${prog}%</span></div>`;
-                    lCard.onclick = () => alert("Урок: " + lesson.title);
+                    lCard.onclick = () => alert("╨г╤А╨╛╨║: " + lesson.title);
                     sDiv.appendChild(lCard);
                 }
             });
@@ -158,10 +159,9 @@ function renderArea(area) {
 
 window.renderDaySelector = function() {
     const cont = document.getElementById('day-selector');
-    if (!cont) return;
     cont.innerHTML = '';
     const today = new Date();
-    const names = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
+    const names = ['╨Я╨Э', '╨Т╨в', '╨б╨а', '╨з╨в', '╨Я╨в', '╨б╨С', '╨Т╨б'];
     for (let i = 0; i < 7; i++) {
         const d = new Date();
         const start = today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1);
@@ -177,13 +177,12 @@ window.renderDaySelector = function() {
 
 function renderLessonsList() {
     const cont = document.getElementById('lessons-list');
-    if (!cont) return;
     cont.innerHTML = '';
     const dStr = window.selectedDate.toISOString().split('T')[0];
     const tasks = window.state.schedule.filter(s => s.task_date === dStr);
     
     if (tasks.length === 0) {
-        cont.innerHTML = '<p style="text-align:center; padding:3rem; opacity:0.5;">Свободный день</p>';
+        cont.innerHTML = '<p style="text-align:center; padding:3rem; opacity:0.5;">╨б╨▓╨╛╨▒╨╛╨┤╨╜╤Л╨╣ ╨┤╨╡╨╜╤М</p>';
         return;
     }
 
@@ -193,9 +192,9 @@ function renderLessonsList() {
         const card = document.createElement('div');
         card.className = `lesson-card ${i % 2 === 0 ? 'purple' : 'blue'}`;
         card.innerHTML = `
-            <div class="lesson-header"><strong>${lesson ? lesson.title : "Урок"}</strong> <span>${t.start_time}</span></div>
+            <div class="lesson-header"><strong>${lesson ? lesson.title : "╨г╤А╨╛╨║"}</strong> <span>${t.start_time}</span></div>
             <div class="lesson-progress-container"><div class="lesson-progress-fill" style="width:${prog}%"></div></div>
-            <button class="btn-start" style="margin-top:1rem; width:100%;" onclick="alert('Урок запускается...')">Начать обучение</button>
+            <button class="btn-start" style="margin-top:1rem; width:100%;" onclick="alert('╨г╤А╨╛╨║ ╨╖╨░╨┐╤Г╤Б╨║╨░╨╡╤В╤Б╤П...')">╨Э╨░╤З╨░╤В╤М ╨╛╨▒╤Г╤З╨╡╨╜╨╕╨╡</button>
         `;
         cont.appendChild(card);
     });
@@ -204,8 +203,7 @@ function renderLessonsList() {
 window.switchView = function(view) {
     window.currentView = view;
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    const activeEl = document.getElementById('nav-' + view);
-    if (activeEl) activeEl.classList.add('active');
+    document.getElementById('nav-' + view).classList.add('active');
     window.render();
 };
 
