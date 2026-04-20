@@ -5,15 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>dEducation | Система Обучения</title>
     <link rel="stylesheet" href="styles.css">
-    
-    <!-- Сначала библиотеки -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-    
-    <style>
-        /* Мини-фикс для надежности кнопки */
-        #login-btn { cursor: pointer; pointer-events: all !important; }
-    </style>
 </head>
 <body>
 
@@ -21,13 +14,12 @@
         <div class="auth-card">
             <div class="logo">d<span>Education</span></div>
             <h2>Вход в систему</h2>
-            <p>Введите ваш Email для доступа к урокам</p>
+            <p>Введите ваш Email для восстановления данных</p>
             <div class="form-group">
                 <input type="email" id="username-input" placeholder="multoretik@gmail.com" value="multoretik@gmail.com">
             </div>
-            <!-- Инлайновый вызов для 100% срабатывания -->
-            <button class="btn-primary" id="login-btn" onclick="if(window.handleLogin) { window.handleLogin(); } else { alert('Система еще загружается, подождите 2 секунды...'); }">Войти и синхронизировать</button>
-            <div id="debug-msg" style="color: red; font-size: 0.7rem; margin-top: 10px;"></div>
+            <button class="btn-primary" id="login-btn" onclick="startLoginProcess()">Войти и синхронизировать</button>
+            <div id="status-msg" style="margin-top:10px; font-size:0.8rem; color: #7b61ff;"></div>
         </div>
     </div>
 
@@ -35,32 +27,101 @@
         <aside>
             <div class="logo">d<span>Education</span></div>
             <ul class="nav-menu">
-                <li class="nav-item"><a href="#" class="nav-link active" onclick="switchView('home')"><ion-icon name="home-outline"></ion-icon> Главная</a></li>
-                <li class="nav-item"><a href="#" class="nav-link" onclick="switchView('schedule')"><ion-icon name="calendar-outline"></ion-icon> План</a></li>
+                <li class="nav-item"><a href="#" class="nav-link active" onclick="switchView('home')">Главная</a></li>
             </ul>
         </aside>
         <main id="main-content">
-            <div class="header-section">
-                <h1 id="view-title">Главная</h1>
-                <p id="view-subtitle">Загрузка...</p>
-            </div>
+            <h1 id="view-title">Главная</h1>
             <div class="day-selector" id="day-selector"></div>
             <div class="lessons-container" id="lessons-list"></div>
         </main>
     </div>
 
-    <!-- Загрузка данных и логики -->
-    <script src="data_v5.js"></script>
-    <script src="app.js"></script>
-    
+    <!-- ВЕСЬ КОД ТЕПЕРЬ ТУТ, ЧТОБЫ ОН ТОЧНО РАБОТАЛ -->
     <script>
-        // Проверка загрузки
-        window.addEventListener('load', () => {
-            console.log("Page fully loaded");
+        const supUrl = 'https://jjjkypymutcvrlngyhtt.supabase.co';
+        const supKey = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
+        let supabase;
+
+        function startLoginProcess() {
+            const email = document.getElementById('username-input').value.trim();
+            if (!email) return alert("Введите Email");
+            
+            const btn = document.getElementById('login-btn');
+            btn.innerText = "Загрузка...";
+            btn.disabled = true;
+
             if (!window.supabase) {
-                document.getElementById('debug-msg').innerText = "ВНИМАНИЕ: Supabase не загрузился. Проверьте интернет.";
+                alert("Ошибка: Библиотека Supabase не загружена. Попробуйте обновить страницу.");
+                btn.innerText = "Войти и синхронизировать";
+                btn.disabled = false;
+                return;
             }
-        });
+
+            supabase = window.supabase.createClient(supUrl, supKey);
+            doLogin(email);
+        }
+
+        async function doLogin(email) {
+            try {
+                localStorage.setItem('d_edu_user', email);
+                
+                // Проверка старых данных
+                const { data: old } = await supabase.from('user_progress').select('data').eq('user_id', email).maybeSingle();
+                if (old && old.data) {
+                    document.getElementById('status-msg').innerText = "Перенос данных...";
+                    await migrate(email, old.data);
+                }
+
+                showApp();
+            } catch (e) {
+                alert("Ошибка: " + e.message);
+                const btn = document.getElementById('login-btn');
+                btn.innerText = "Войти и синхронизировать";
+                btn.disabled = false;
+            }
+        }
+
+        async function migrate(uid, legacy) {
+            if (legacy.stats) {
+                await supabase.from('user_profiles').upsert({ user_id: uid, xp: legacy.stats.totalXp, coins: legacy.stats.coins, streak: legacy.stats.streak });
+            }
+            if (legacy.lessons) {
+                const entries = Object.entries(legacy.lessons).map(([id, d]) => ({ user_id: uid, lesson_id: id, status: d.status || 'completed', progress: d.progress || 100 }));
+                if (entries.length > 0) await supabase.from('user_lessons').upsert(entries, { onConflict: 'user_id, lesson_id' });
+            }
+        }
+
+        async function showApp() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'flex';
+            
+            const email = localStorage.getItem('d_edu_user');
+            const { data: p } = await supabase.from('user_profiles').select('*').eq('user_id', email).maybeSingle();
+            const { data: s } = await supabase.from('user_schedule').select('*').eq('user_id', email);
+            
+            renderSchedule(s || []);
+        }
+
+        function renderSchedule(tasks) {
+            const list = document.getElementById('lessons-list');
+            list.innerHTML = tasks.length ? "" : "<p>Уроков нет</p>";
+            tasks.forEach(t => {
+                const card = document.createElement('div');
+                card.className = "lesson-card purple";
+                card.innerHTML = `<h3>Урок: ${t.task_id}</h3><p>Время: ${t.start_time}</p>`;
+                list.appendChild(card);
+            });
+        }
+
+        // Авто-вход
+        window.onload = () => {
+            const user = localStorage.getItem('d_edu_user');
+            if (user && window.supabase) {
+                supabase = window.supabase.createClient(supUrl, supKey);
+                showApp();
+            }
+        };
     </script>
 </body>
 </html>
