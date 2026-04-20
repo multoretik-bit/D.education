@@ -73,21 +73,6 @@ async function loadProgressFromCloud() {
     try {
         // Ensure all required fields exist
         if (!userProgress.schedule) userProgress.schedule = {};
-        
-        // [CLEANUP] Remove all existing lessons from schedule as requested
-        Object.keys(userProgress.schedule).forEach(date => {
-            if (Array.isArray(userProgress.schedule[date])) {
-                userProgress.schedule[date] = userProgress.schedule[date].filter(task => {
-                    if (typeof task === 'string') return false; // Legacy string ID
-                    return task.type !== 'lesson';
-                });
-            } else {
-                // Legacy non-array format (was a string lesson ID)
-                userProgress.schedule[date] = [];
-            }
-            if (userProgress.schedule[date].length === 0) delete userProgress.schedule[date];
-        });
-
         if (!userProgress.customLessons) userProgress.customLessons = {};
         if (!userProgress.customAreas) userProgress.customAreas = {};
         if (!userProgress.customSubsystems) userProgress.customSubsystems = {};
@@ -95,11 +80,6 @@ async function loadProgressFromCloud() {
         if (!userProgress.completions) userProgress.completions = {};
         if (!userProgress.ankiCards) userProgress.ankiCards = {};
         if (!userProgress.ankiFolders) userProgress.ankiFolders = {};
-        
-        // Ensure all anki cards have knowCount
-        Object.values(userProgress.ankiCards).forEach(c => {
-            if (c.knowCount === undefined) c.knowCount = 0;
-        });
         
         injectCustomCourse();
     } catch (err) {
@@ -434,9 +414,37 @@ window.render = function() {
 
     if (currentView === 'home') renderHome();
     else if (currentView === 'catalog') renderAreas();
+    else if (currentView === 'stats') renderStats();
     else if (currentView === 'profile') renderProfile();
-    else if (currentView === 'schedule') renderDashboard(); 
+    else if (currentView === 'schedule') renderFullSchedule(); 
 };
+
+function renderStats() {
+    document.getElementById('view-title').innerText = "Прогресс";
+    document.getElementById('view-subtitle').style.display = 'none';
+    document.getElementById('day-selector').style.display = 'none';
+    document.getElementById('current-day-label').style.display = 'none';
+    document.getElementById('lessons-list').innerHTML = '<div style="text-align:center; padding:5rem; opacity:0.5;">Статистика скоро будет доступна</div>';
+}
+
+function renderProfile() {
+    document.getElementById('view-title').innerText = "Профиль";
+    document.getElementById('view-subtitle').style.display = 'none';
+    document.getElementById('day-selector').style.display = 'none';
+    document.getElementById('current-day-label').style.display = 'none';
+    document.getElementById('lessons-list').innerHTML = `
+        <div class="area-card c-purple" style="cursor:default;">
+            <h2>${currentUser}</h2>
+            <p>Ученик dEducation</p>
+            <button class="btn" style="margin-top:1rem; background:rgba(0,0,0,0.2); color:white; border:none;" onclick="localStorage.clear(); location.reload();">Выйти</button>
+        </div>
+    `;
+}
+
+function renderFullSchedule() {
+    // For now, map to home but show full week logic if needed
+    renderHome();
+}
 
 window.switchView = function(view) {
     currentView = view;
@@ -449,7 +457,10 @@ window.switchView = function(view) {
 function renderHome() {
     const today = new Date();
     document.getElementById('view-title').innerText = "Главная";
+    document.getElementById('view-subtitle').style.display = 'block';
     document.getElementById('view-subtitle').innerHTML = `Сегодняшние уроки • <span id="current-date-display">${today.getDate()} ${MONTHS_FULL[today.getMonth()]}, ${DAYS_FULL[today.getDay()]}</span>`;
+    document.getElementById('day-selector').style.display = 'flex';
+    document.getElementById('current-day-label').style.display = 'block';
 
     renderDaySelectorPremium();
     renderLessonsPremium();
