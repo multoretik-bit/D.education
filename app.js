@@ -3,7 +3,16 @@
 // --- SUPABASE CONFIG ---
 const supabaseUrl = 'https://jjjkypymutcvrlngyhtt.supabase.co';
 const supabaseKey = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
-const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+// Defer client creation to avoid crashes if CDN is slow
+let supabaseClient = null;
+function getSupabase() {
+    if (supabaseClient) return supabaseClient;
+    if (window.supabase) {
+        supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+        return supabaseClient;
+    }
+    return null;
+}
 
 // State Management
 let currentView = 'home';
@@ -43,11 +52,18 @@ let ankiTrainState = {
 
 // --- CLOUD SYNC ---
 async function loadProgressFromCloud() {
+    if (!currentUser) return;
+    const client = getSupabase();
+    if (!client) {
+        console.warn("Supabase not ready, retrying in 1s...");
+        setTimeout(loadProgressFromCloud, 1000);
+        return;
+    }
+    
     console.log("Синхронизация с облаком...");
-    // Не стираем main-content, чтобы не ломать ID элементов
 
     try {
-        const { data, error } = await supabaseClient
+        const { data, error } = await client
             .from('user_progress')
             .select('data')
             .eq('user_id', currentUser)
@@ -162,7 +178,10 @@ async function saveProgressToCloud() {
     if (!currentUser) return;
 
     try {
-        const { error } = await supabaseClient
+        const client = getSupabase();
+        if (!client) return console.warn("Supabase not ready to save");
+
+        const { error } = await client
             .from('user_progress')
             .upsert(
                 { user_id: currentUser, data: userProgress, last_updated: new Date().toISOString() },
@@ -476,22 +495,31 @@ window.switchView = function(view) {
 }
 
 function renderHome() {
+    console.log("renderHome() triggered");
     const today = new Date();
     const titleEl = document.getElementById('view-title');
     const subtitleEl = document.getElementById('view-subtitle');
     const daySelectorEl = document.getElementById('day-selector');
     const dayLabelEl = document.getElementById('current-day-label');
 
-    if (titleEl) titleEl.innerText = "Главная";
-    if (subtitleEl) {
-        subtitleEl.style.display = 'block';
-        subtitleEl.innerHTML = `Сегодняшние уроки • <span id="current-date-display">${today.getDate()} ${MONTHS_FULL[today.getMonth()]}, ${DAYS_FULL[today.getDay()]}</span>`;
-    }
-    if (daySelectorEl) daySelectorEl.style.display = 'flex';
-    if (dayLabelEl) dayLabelEl.style.display = 'block';
+    try {
+        if (titleEl) titleEl.innerText = "Главная";
+        if (subtitleEl) {
+            subtitleEl.style.display = 'block';
+            if (typeof MONTHS_FULL !== 'undefined' && typeof DAYS_FULL !== 'undefined') {
+                subtitleEl.innerHTML = `Сегодняшние уроки • <span id="current-date-display">${today.getDate()} ${MONTHS_FULL[today.getMonth()]}, ${DAYS_FULL[today.getDay()]}</span>`;
+            } else {
+                subtitleEl.innerText = `Сегодняшние уроки`;
+            }
+        }
+        if (daySelectorEl) daySelectorEl.style.display = 'flex';
+        if (dayLabelEl) dayLabelEl.style.display = 'block';
 
-    renderDaySelectorPremium();
-    renderLessonsPremium();
+        renderDaySelectorPremium();
+        renderLessonsPremium();
+    } catch (e) {
+        console.error("Error in renderHome:", e);
+    }
 }
 
 function renderDaySelectorPremium() {
@@ -540,9 +568,16 @@ function renderLessonsPremium() {
     const dStr = `${y}-${m}-${d}`;
     
     const tasks = getTasksForDate(dStr);
+    console.log(`Found ${tasks.length} tasks for date ${dStr}`);
 
     if (tasks.length === 0) {
-        cont.innerHTML = '<div style="text-align:center; padding:5rem; opacity:0.2; font-size: 1.2rem;">На этот день планов нет.</div>';
+        cont.innerHTML = `
+            <div style="text-align:center; padding:5rem; opacity:0.3;">
+                <ion-icon name="calendar-clear-outline" style="font-size: 4rem; margin-bottom: 1rem;"></ion-icon>
+                <p style="font-size: 1.2rem;">На этот день планов нет.</p>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem;">Добавьте свой первый урок через План на неделю или Каталог.</p>
+            </div>
+        `;
         return;
     }
 
