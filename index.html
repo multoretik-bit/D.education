@@ -1,245 +1,37 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D-Education | ╨д╨╕╨╜╨░╨╜╤Б╨╛╨▓╨░╤П ╨│╤А╨░╨╝╨╛╤В╨╜╨╛╤Б╤В╤М</title>
-    <!-- Google Fonts -->
+    <title>D-Education | Финансовая грамотность</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <!-- Ionicons for icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    
-    <!-- Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="container fade-in">
-        <!-- Sidebar -->
         <nav id="sidebar">
             <div class="nav-brand">d<span>Education</span></div>
             <ul class="nav-links">
-                <li><a href="#" class="active" id="nav-home" onclick="switchView('home')"><ion-icon name="home-outline"></ion-icon> ╨У╨╗╨░╨▓╨╜╨░╤П</a></li>
-                <li><a href="#" id="nav-schedule" onclick="switchView('schedule')"><ion-icon name="calendar-outline"></ion-icon> ╨Я╨╗╨░╨╜ ╨╜╨░ ╨╜╨╡╨┤╨╡╨╗╤О</a></li>
-                <li><a href="#" id="nav-catalog" onclick="switchView('catalog')"><ion-icon name="grid-outline"></ion-icon> ╨Ъ╨░╤В╨░╨╗╨╛╨│ ╨║╤Г╤А╤Б╨╛╨▓</a></li>
-                <li><a href="#" id="nav-stats" onclick="switchView('stats')"><ion-icon name="bar-chart-outline"></ion-icon> ╨Я╤А╨╛╨│╤А╨╡╤Б╤Б</a></li>
-                <li><a href="#" id="nav-profile" onclick="switchView('profile')"><ion-icon name="person-outline"></ion-icon> ╨Я╤А╨╛╤Д╨╕╨╗╤М</a></li>
+                <li><a href="#" class="active" id="nav-home" onclick="switchView('home')"><ion-icon name="home-outline"></ion-icon> Главная</a></li>
+                <li><a href="#" id="nav-schedule" onclick="switchView('schedule')"><ion-icon name="calendar-outline"></ion-icon> План на неделю</a></li>
+                <li><a href="#" id="nav-catalog" onclick="switchView('catalog')"><ion-icon name="grid-outline"></ion-icon> Каталог курсов</a></li>
+                <li><a href="#" id="nav-stats" onclick="switchView('stats')"><ion-icon name="bar-chart-outline"></ion-icon> Прогресс</a></li>
+                <li><a href="#" id="nav-profile" onclick="switchView('profile')"><ion-icon name="person-outline"></ion-icon> Профиль</a></li>
             </ul>
-
-            <div class="sidebar-search">
-                <div class="search-input-wrapper">
-                    <ion-icon name="search-outline"></ion-icon>
-                    <input type="text" placeholder="╨Э╨░╨╣╤В╨╕ ╤Г╤А╨╛╨║..." onkeyup="handleSearch(event)">
-                </div>
-            </div>
         </nav>
-
-        <!-- Main Content -->
         <main id="main-content">
             <div class="header-section">
-                <h1 id="view-title">╨У╨╗╨░╨▓╨╜╨░╤П</h1>
-                <p id="view-subtitle">╨б╨╡╨│╨╛╨┤╨╜╤П╤И╨╜╨╕╨╡ ╤Г╤А╨╛╨║╨╕ тАв <span id="current-date-display">...</span></p>
+                <h1 id="view-title">Главная</h1>
+                <p id="view-subtitle">Сегодняшние уроки</p>
             </div>
-
-            <div id="day-selector" class="day-selector-horizontal">
-                <!-- Days will be injected here -->
-            </div>
-
-            <h2 id="current-day-label" style="margin: 1.5rem 0; font-size: 1.5rem;">...</h2>
-
-            <div id="lessons-list">
-                <!-- Lessons will be injected here -->
-            </div>
+            <div id="day-selector" class="day-selector-horizontal"></div>
+            <div id="lessons-list" style="margin-top: 2rem;"></div>
         </main>
-
-        <!-- Floating Action Button -->
-        <div class="premium-fab" onclick="openAddLessonModal()">
-            <ion-icon name="add"></ion-icon>
-        </div>
-    </div>
-
-    <!-- Scripts -->
-    <!-- Custom Lesson Modal -->
-    <div id="custom-lesson-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 500px;">
-            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
-                <h3 style="color:var(--primary);"><ion-icon name="create-outline"></ion-icon> ╨б╨╛╨╖╨┤╨░╤В╤М ╤Б╨▓╨╛╨╣ ╤Г╤А╨╛╨║</h3>
-                <ion-icon name="close" onclick="closeCustomLessonModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-            </header>
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <div>
-                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 5px;">╨Э╨░╨╖╨▓╨░╨╜╨╕╨╡ ╤Г╤А╨╛╨║╨░</label>
-                    <input type="text" id="custom-lesson-title" class="check-input" style="margin-top: 0;" placeholder="╨Э╨░╨╖╨▓╨░╨╜╨╕╨╡ (╨╜╨░╨┐╤А╨╕╨╝╨╡╤А: ╨У╨╗╨░╨▓╨░ 1 ╨╕╨╖ ╨д╨╕╨╜╨░╨╜╤Б╨╛╨▓...)">
-                </div>
-                <div>
-                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 5px;">╨б╤Г╤В╤М / ╨Ч╨░╨╝╨╡╤В╨║╨╕ (╤В╨╛, ╤З╤В╨╛ ╨╜╤Г╨╢╨╜╨╛ ╨╖╨░╨┐╨╛╨╝╨╜╨╕╤В╤М)</label>
-                    <textarea id="custom-lesson-notes" class="check-input" style="margin-top: 0; min-height: 150px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-main); padding: 10px; font-family: inherit; width: 100%; box-sizing: border-box;" placeholder="╨Э╨░╨┐╨╕╤И╨╕╤В╨╡ ╨╖╨┤╨╡╤Б╤М ╤В╨╛, ╤З╤В╨╛ ╨▓╤Л ╤Е╨╛╤В╨╕╤В╨╡ ╨▓╤Л╤Г╤З╨╕╤В╤М. ╨Т ╨▒╤Г╨┤╤Г╤Й╨╡╨╝ ╤Н╤В╨╛╤В ╤В╨╡╨║╤Б╤В ╨┐╨╛╤П╨▓╨╕╤В╤Б╤П ╨║╨░╨║ ╨║╨░╤А╤В╨╛╤З╨║╨░ ╨┤╨╗╤П ╨┐╨╛╨▓╤В╨╛╤А╨╡╨╜╨╕╤П."></textarea>
-                </div>
-                <input type="hidden" id="custom-lesson-target-skill" value="">
-                <button class="btn btn-primary" style="margin-top: 1rem;" onclick="saveCustomLesson()">╨б╨╛╤Е╤А╨░╨╜╨╕╤В╤М ╤Г╤А╨╛╨║ ╨▓ ╨▒╨░╨╖╤Г</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Create Course Modal -->
-    <div id="create-course-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 400px;">
-            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
-                <h3 style="color:var(--primary);"><ion-icon name="add-circle-outline"></ion-icon> ╨Э╨╛╨▓╤Л╨╣ ╨║╤Г╤А╤Б</h3>
-                <ion-icon name="close" onclick="closeCreateCourseModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-            </header>
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <input type="hidden" id="edit-course-id" value="">
-                <div>
-                    <label class="modal-label">╨Э╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨▓╨░╤И╨╡╨│╨╛ ╨║╤Г╤А╤Б╨░</label>
-                    <input type="text" id="course-title-input" class="check-input" style="margin-top: 0;" placeholder="╨Э╨░╨┐╤А╨╕╨╝╨╡╤А: ╨Ь╨╛╨╣ ╨Р╨╜╨│╨╗╨╕╨╣╤Б╨║╨╕╨╣">
-                </div>
-                <div>
-                    <label class="modal-label">╨ж╨▓╨╡╤В ╨║╤Г╤А╤Б╨░</label>
-                    <div class="color-picker-mini" id="course-color-picker">
-                        <div class="color-opt c-purple selected" data-color="purple"></div>
-                        <div class="color-opt c-blue" data-color="blue"></div>
-                        <div class="color-opt c-green" data-color="green"></div>
-                        <div class="color-opt c-orange" data-color="orange"></div>
-                        <div class="color-opt c-pink" data-color="pink"></div>
-                    </div>
-                </div>
-                <div>
-                    <label class="modal-label">╨б╤Б╤Л╨╗╨║╨░ ╨╜╨░ ╤Д╨╛╤В╨╛ (URL)</label>
-                    <input type="text" id="course-photo-input" class="check-input" style="margin-top: 0;" placeholder="╨Т╤Б╤В╨░╨▓╤М╤В╨╡ ╤Б╤Б╤Л╨╗╨║╤Г ╨╜╨░ ╨║╨░╤А╤В╨╕╨╜╨║╤Г...">
-                </div>
-                <button class="btn btn-primary" id="save-course-btn" onclick="saveCustomCourse()">╨б╨╛╨╖╨┤╨░╤В╤М ╨║╤Г╤А╤Б</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Create Chapter Modal -->
-    <div id="create-chapter-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 400px;">
-            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
-                <h3 style="color:var(--secondary);"><ion-icon name="folder-open-outline"></ion-icon> ╨Э╨╛╨▓╨░╤П ╨│╨╗╨░╨▓╨░</h3>
-                <ion-icon name="close" onclick="closeCreateChapterModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-            </header>
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <div>
-                    <label class="modal-label">╨Э╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨│╨╗╨░╨▓╤Л (╤А╨░╨╖╨┤╨╡╨╗╨░)</label>
-                    <input type="text" id="chapter-title-input" class="check-input" style="margin-top: 0;" placeholder="╨Э╨░╨┐╤А╨╕╨╝╨╡╤А: ╨У╤А╨░╨╝╨╝╨░╤В╨╕╨║╨░">
-                </div>
-                <input type="hidden" id="chapter-target-area" value="">
-                <button class="btn btn-primary" style="background: var(--secondary); box-shadow: 0 5px 15px rgba(0, 229, 255, 0.2);" onclick="saveCustomChapter()">╨б╨╛╨╖╨┤╨░╤В╤М ╨│╨╗╨░╨▓╤Г</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Anki Card Modal -->
-    <div id="anki-card-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 500px;">
-            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
-                <h3 style="color:var(--primary);"><ion-icon name="albums-outline"></ion-icon> ╨Э╨╛╨▓╨░╤П ╨║╨░╤А╤В╨╛╤З╨║╨░</h3>
-                <ion-icon name="close" onclick="closeAnkiCardModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-            </header>
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <div>
-                    <label class="modal-label">╨Т╨╛╨┐╤А╨╛╤Б / ╨в╨╛, ╤З╤В╨╛ ╨╜╤Г╨╢╨╜╨╛ ╨▓╤Б╨┐╨╛╨╝╨╜╨╕╤В╤М (╨Ы╨╕╤Ж╨╡╨▓╨░╤П ╤Б╤В╨╛╤А╨╛╨╜╨░)</label>
-                    <textarea id="anki-front-input" class="check-input" style="margin-top: 0; min-height: 100px;" placeholder="╨Э╨░╨┐╤А╨╕╨╝╨╡╤А: ╨Т ╨║╨░╨║╨╛╨╝ ╨│╨╛╨┤╤Г ╨╖╨░╨║╨╛╨╜╤З╨╕╨╗╨░╤Б╤М 1-╤П ╨╝╨╕╤А╨╛╨▓╨░╤П?"></textarea>
-                </div>
-                <div>
-                    <label class="modal-label">╨Ю╤В╨▓╨╡╤В / ╨б╨╗╨╛╨▓╨╛ / ╨Ф╨░╤В╨░ (╨Ю╨▒╤А╨░╤В╨╜╨░╤П ╤Б╤В╨╛╤А╨╛╨╜╨░)</label>
-                    <input type="text" id="anki-back-input" class="check-input" style="margin-top: 0; min-height: auto;" placeholder="╨Э╨░╨┐╤А╨╕╨╝╨╡╤А: 1918 ╨╕╨╗╨╕ Apple">
-                </div>
-                <div>
-                    <label class="modal-label">╨Ъ╨░╤А╤В╨╕╨╜╨║╨░ (URL ╨╕╨╗╨╕ ╨Ч╨░╨│╤А╤Г╨╖╨╕╤В╤М ╤Б ╤Г╤Б╤В╤А╨╛╨╣╤Б╤В╨▓╨░)</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="text" id="anki-image-input" class="check-input" style="margin-top: 0; min-height: auto; flex: 1;" placeholder="https://example.com/image.jpg">
-                        <label for="anki-image-file" class="btn" style="padding: 0.6rem; background: var(--secondary); margin-top: 0; min-height: auto; display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; box-shadow: none;">
-                            <ion-icon name="image-outline" style="font-size: 1.2rem;"></ion-icon>
-                        </label>
-                        <input type="file" id="anki-image-file" accept="image/*" style="display: none;" onchange="handleAnkiImageUpload(this)">
-                    </div>
-                    <div id="anki-image-preview" style="margin-top: 10px; display: none;">
-                        <img id="anki-preview-img" src="" style="max-width: 100%; max-height: 100px; border-radius: 8px;">
-                    </div>
-                </div>
-                <div>
-                    <label class="modal-label">╨Я╨░╨┐╨║╨░</label>
-                    <select id="anki-folder-select" class="check-input" style="margin-top: 0; min-height: auto; appearance: none; background: rgba(0,0,0,0.3);">
-                        <option value="">╨С╨╡╨╖ ╨┐╨░╨┐╨║╨╕</option>
-                    </select>
-                </div>
-                <input type="hidden" id="anki-target-area" value="">
-                <input type="hidden" id="edit-anki-card-id" value="">
-                <button class="btn btn-primary" onclick="saveAnkiCard()">╨б╨╛╤Е╤А╨░╨╜╨╕╤В╤М ╨║╨░╤А╤В╨╛╤З╨║╤Г</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Anki Folders Modal -->
-    <div id="anki-folders-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 400px;">
-            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1.5rem;">
-                <h3 style="color:var(--secondary);"><ion-icon name="folder-outline"></ion-icon> ╨г╨┐╤А╨░╨▓╨╗╨╡╨╜╨╕╨╡ ╨┐╨░╨┐╨║╨░╨╝╨╕</h3>
-                <ion-icon name="close" onclick="closeAnkiFoldersModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-            </header>
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="anki-new-folder-title" class="check-input" style="margin-top: 0; min-height: auto;" placeholder="╨Э╨╛╨▓╨░╤П ╨┐╨░╨┐╨║╨░...">
-                    <button class="btn btn-primary" style="padding: 0 1rem; background: var(--secondary); box-shadow: none;" onclick="createAnkiFolder()"><ion-icon name="add"></ion-icon></button>
-                </div>
-                <div id="anki-folders-list" style="max-height: 250px; overflow-y: auto; margin-top: 1rem;">
-                    <!-- Folders list will be injected here -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Schedule Modal -->
-    <div id="schedule-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column; width: 600px;">
-            <header style="display: flex; justify-content: space-between; align-items:center; margin-bottom:1rem; flex-shrink: 0;">
-               <h3 style="color:var(--primary); font-size: 1.2rem;"><ion-icon name="calendar-outline"></ion-icon> ╨Я╨╗╨░╨╜: <span id="modal-date-display" style="color: var(--text-main);">...</span></h3>
-               <ion-icon name="close" onclick="closeScheduleModal()" style="font-size:1.5rem; cursor:pointer;"></ion-icon>
-            </header>
-            
-            <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
-               <div class="modal-row" style="margin-bottom: 10px; display: flex; gap: 15px;">
-                   <div style="flex: 1;">
-                       <label class="modal-label">╨Э╨░╤З╨░╨╗╨╛</label>
-                       <input type="time" id="modal-task-time" class="time-input" value="19:00" style="width: 100%; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 8px;">
-                   </div>
-                   <div style="flex: 1;">
-                       <label class="modal-label">╨Ф╨╗╨╕╤В╨╡╨╗╤М╨╜╨╛╤Б╤В╤М (╨╝╨╕╨╜)</label>
-                       <input type="number" id="modal-task-duration" class="number-input" value="60" min="5" max="180" style="width: 100%; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 8px;">
-                   </div>
-               </div>
-               <div style="margin-bottom: 10px;">
-                   <label class="modal-label">╨в╨╡╨╝╨░ / ╨б╨▓╨╛╨╡ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡</label>
-                   <input type="text" id="modal-task-custom-title" class="check-input" style="margin-top:0; padding: 10px; min-height: auto;" placeholder="╨Э╨░╨┐╤А╨╕╨╝╨╡╤А: ╨з╤В╨╡╨╜╨╕╨╡: ╨У╨╗╨░╨▓╨░ 5">
-               </div>
-               <div>
-                   <label class="modal-label">╨ж╨▓╨╡╤В ╤Г╤А╨╛╨║╨░</label>
-                   <div class="color-picker-mini" id="task-color-picker">
-                       <div class="color-opt c-purple selected" data-color="purple"></div>
-                       <div class="color-opt c-blue" data-color="blue"></div>
-                       <div class="color-opt c-green" data-color="green"></div>
-                       <div class="color-opt c-orange" data-color="orange"></div>
-                       <div class="color-opt c-pink" data-color="pink"></div>
-                   </div>
-               </div>
-            </div>
-
-            <p style="color:var(--text-secondary); margin-bottom: 1rem; font-size:0.9rem; flex-shrink: 0;">╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨║╤Г╤А╤Б ╨╕╨╗╨╕ ╤Г╤А╨╛╨║:</p>
-            
-            <div id="modal-tab-browse" style="overflow-y:auto; flex-grow: 1; border: 1px solid rgba(255,255,255,0.05); padding: 10px; border-radius: 12px;">
-                <div id="modal-tree-content">
-                    <!-- Hierarchy injected here via JS -->
-                </div>
-            </div>
-            
-            <input type="hidden" id="modal-active-date" value="">
-        </div>
     </div>
 
     <!-- Scripts -->
