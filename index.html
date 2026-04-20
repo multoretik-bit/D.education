@@ -3,22 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>dEducation | Premium</title>
+    <title>dEducation | Полная Версия</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 </head>
-<body style="background: #0f0f1a; color: white; margin: 0;">
+<body>
 
-    <!-- СЕКЦИЯ ВХОДА -->
-    <div id="auth-screen" class="auth-container" style="display: flex;">
+    <!-- ЭКРАН ВХОДА -->
+    <div id="auth-screen" class="auth-container" style="display: none;">
         <div class="auth-card">
             <div class="logo">d<span>Education</span></div>
             <h2>С возвращением</h2>
+            <p>Введите Email для доступа к вашим урокам</p>
             <div class="form-group">
-                <input type="email" id="username-input" value="multoretik@gmail.com" style="width: 100%; padding: 12px; border-radius: 10px; border: none; background: #252545; color: white;">
+                <input type="email" id="username-input" value="multoretik@gmail.com">
             </div>
-            <button class="btn-primary" id="login-btn" onclick="runLogin()">Войти в аккаунт</button>
+            <button class="btn-primary" id="login-btn" onclick="handleLogin()">Войти в аккаунт</button>
         </div>
     </div>
 
@@ -27,99 +28,37 @@
         <aside>
             <div class="logo">d<span>Education</span></div>
             <ul class="nav-menu">
-                <li class="nav-item"><a href="#" class="nav-link active">Главная</a></li>
-                <li class="nav-item"><a href="#" onclick="logout()">Выход</a></li>
+                <li class="nav-item"><a href="#" id="nav-home" class="nav-link active" onclick="switchView('home')"><ion-icon name="home-outline"></ion-icon> Главная</a></li>
+                <li class="nav-item"><a href="#" id="nav-catalog" class="nav-link" onclick="switchView('catalog')"><ion-icon name="grid-outline"></ion-icon> Мои Блоки</a></li>
+                <li class="nav-item"><a href="#" id="nav-schedule" class="nav-link" onclick="switchView('schedule')"><ion-icon name="calendar-outline"></ion-icon> Расписание</a></li>
+                <li class="nav-item"><a href="#" class="nav-link" onclick="logout()"><ion-icon name="log-out-outline"></ion-icon> Выход</a></li>
             </ul>
         </aside>
 
-        <main id="main-content" style="padding: 2rem;">
+        <main id="main-content">
             <div class="header-section">
-                <h1 id="user-title">Загрузка...</h1>
-                <p id="user-stats">XP: 0 • Монеты: 0</p>
+                <h1 id="view-title">Главная</h1>
+                <p id="view-subtitle">Загрузка данных...</p>
             </div>
-            <div class="lessons-container" id="lessons-list" style="margin-top: 2rem;">
-                <!-- Сюда попадут уроки -->
+            
+            <!-- Селектор дней (для Главной) -->
+            <div class="day-selector" id="day-selector"></div>
+
+            <!-- Контейнер для уроков/блоков -->
+            <div class="lessons-container" id="lessons-list"></div>
+
+            <!-- Кнопка добавления -->
+            <div class="fab-container" onclick="openAddLessonModal()">
+                <div class="fab-btn"><ion-icon name="add"></ion-icon></div>
             </div>
         </main>
     </div>
 
-    <script>
-        const URL = 'https://jjjkypymutcvrlngyhtt.supabase.co';
-        const KEY = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
-        let sb;
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
+        <div class="modal-content" id="modal-content" onclick="event.stopPropagation()"></div>
+    </div>
 
-        async function runLogin() {
-            const email = document.getElementById('username-input').value.trim();
-            const btn = document.getElementById('login-btn');
-            btn.innerText = "Вход...";
-            
-            try {
-                if (!window.supabase) return alert("Ошибка: База данных не загружена. Обновите страницу.");
-                sb = window.supabase.createClient(URL, KEY);
-                
-                localStorage.setItem('d_edu_user', email);
-                
-                // Проверка и перенос данных
-                const { data: old } = await sb.from('user_progress').select('data').eq('user_id', email).maybeSingle();
-                if (old && old.data) {
-                    await migrate(email, old.data);
-                }
-
-                showDashboard(email);
-            } catch (e) {
-                alert("Ошибка: " + e.message);
-                btn.innerText = "Войти в аккаунт";
-            }
-        }
-
-        async function migrate(email, d) {
-            if (d.stats) await sb.from('user_profiles').upsert({ user_id: email, xp: d.stats.totalXp||0, coins: d.stats.coins||0, streak: d.stats.streak||0 });
-            if (d.lessons) {
-                const ent = Object.entries(d.lessons).map(([id, v]) => ({ user_id: email, lesson_id: id, status: v.status||'completed', progress: v.progress||100 }));
-                if (ent.length > 0) await sb.from('user_lessons').upsert(ent, { onConflict: 'user_id, lesson_id' });
-            }
-        }
-
-        async function showDashboard(email) {
-            document.getElementById('auth-screen').style.display = 'none';
-            document.getElementById('app-screen').style.display = 'flex';
-            document.getElementById('user-title').innerText = "Привет, " + email.split('@')[0];
-
-            if (!sb) sb = window.supabase.createClient(URL, KEY);
-
-            const { data: prof } = await sb.from('user_profiles').select('*').eq('user_id', email).maybeSingle();
-            const { data: lessons } = await sb.from('user_lessons').select('*').eq('user_id', email);
-
-            if (prof) {
-                document.getElementById('user-stats').innerText = `XP: ${prof.xp} • Монеты: ${prof.coins} • Стрик: ${prof.streak}`;
-            }
-
-            const list = document.getElementById('lessons-list');
-            list.innerHTML = (lessons && lessons.length) ? "" : "<p>Ваш список уроков пуст. Начните обучение!</p>";
-            
-            if (lessons) {
-                lessons.forEach(l => {
-                    const card = document.createElement('div');
-                    card.className = "lesson-card purple";
-                    card.style.marginBottom = "1rem";
-                    card.innerHTML = `<h3>${l.lesson_id}</h3><p>Прогресс: ${l.progress}%</p>`;
-                    list.appendChild(card);
-                });
-            }
-        }
-
-        function logout() {
-            localStorage.clear();
-            location.reload();
-        }
-
-        // Авто-вход при загрузке
-        window.onload = () => {
-            const user = localStorage.getItem('d_edu_user');
-            if (user && window.supabase) {
-                showDashboard(user);
-            }
-        };
-    </script>
+    <script src="data_v5.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
