@@ -3,62 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>dEducation | Полная Версия</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>dEducation | Recovery Mode</title>
+    <style>
+        /* БАЗОВЫЕ СТИЛИ ЧТОБЫ ВСЁ НЕ РАЗВАЛИЛОСЬ */
+        body { background: #0f0f1a; color: white; font-family: sans-serif; margin: 0; }
+        .auth-container { display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .auth-card { background: #1a1a2e; padding: 2rem; border-radius: 20px; text-align: center; width: 320px; }
+        .btn-primary { background: #7b61ff; color: white; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; width: 100%; font-weight: bold; }
+        input { width: 100%; padding: 10px; margin: 1rem 0; border-radius: 8px; border: none; background: #252545; color: white; box-sizing: border-box; }
+        #app-screen { display: none; padding: 2rem; }
+        .lesson-card { background: #1a1a2e; padding: 1rem; border-radius: 15px; margin-bottom: 1rem; border-left: 5px solid #7b61ff; }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 </head>
 <body>
 
     <!-- ЭКРАН ВХОДА -->
-    <div id="auth-screen" class="auth-container" style="display: none;">
+    <div id="auth-screen" class="auth-container">
         <div class="auth-card">
-            <div class="logo">d<span>Education</span></div>
-            <h2>С возвращением</h2>
-            <p>Введите Email для доступа к вашим урокам</p>
-            <div class="form-group">
-                <input type="email" id="username-input" value="multoretik@gmail.com">
-            </div>
-            <button class="btn-primary" id="login-btn" onclick="handleLogin()">Войти в аккаунт</button>
+            <h1 style="color: #7b61ff;">dEducation</h1>
+            <p>Вход в систему</p>
+            <input type="email" id="user-email" value="multoretik@gmail.com">
+            <button class="btn-primary" id="login-btn">ВОЙТИ</button>
+            <div id="status" style="margin-top: 10px; font-size: 0.8rem; opacity: 0.5;"></div>
         </div>
     </div>
 
-    <!-- ОСНОВНОЙ ИНТЕРФЕЙС -->
-    <div id="app-screen" class="app-container" style="display: none;">
-        <aside>
-            <div class="logo">d<span>Education</span></div>
-            <ul class="nav-menu">
-                <li class="nav-item"><a href="#" id="nav-home" class="nav-link active" onclick="switchView('home')"><ion-icon name="home-outline"></ion-icon> Главная</a></li>
-                <li class="nav-item"><a href="#" id="nav-catalog" class="nav-link" onclick="switchView('catalog')"><ion-icon name="grid-outline"></ion-icon> Мои Блоки</a></li>
-                <li class="nav-item"><a href="#" id="nav-schedule" class="nav-link" onclick="switchView('schedule')"><ion-icon name="calendar-outline"></ion-icon> Расписание</a></li>
-                <li class="nav-item"><a href="#" class="nav-link" onclick="logout()"><ion-icon name="log-out-outline"></ion-icon> Выход</a></li>
-            </ul>
-        </aside>
+    <!-- ОСНОВНОЙ ЭКРАН -->
+    <div id="app-screen">
+        <h1 id="welcome-msg">Загрузка...</h1>
+        <div id="content-area"></div>
+        <button onclick="localStorage.clear(); location.reload();" style="background:none; border:1px solid red; color:red; padding:5px 10px; cursor:pointer; border-radius:5px;">Выйти</button>
+    </div>
 
-        <main id="main-content">
-            <div class="header-section">
-                <h1 id="view-title">Главная</h1>
-                <p id="view-subtitle">Загрузка данных...</p>
-            </div>
+    <script>
+        // ГЛОБАЛЬНЫЙ ПЕРЕХВАТ ОШИБОК
+        window.onerror = (m, u, l) => alert("ОШИБКА: " + m + " на строке " + l);
+
+        const URL = 'https://jjjkypymutcvrlngyhtt.supabase.co';
+        const KEY = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
+        let sb;
+
+        document.getElementById('login-btn').onclick = async () => {
+            const email = document.getElementById('user-email').value;
+            const status = document.getElementById('status');
+            status.innerText = "Подключение...";
             
-            <!-- Селектор дней (для Главной) -->
-            <div class="day-selector" id="day-selector"></div>
+            try {
+                if (!window.supabase) throw new Error("Supabase не загружен");
+                sb = window.supabase.createClient(URL, KEY);
+                
+                localStorage.setItem('d_edu_user', email);
+                
+                status.innerText = "Поиск данных...";
+                const { data: old } = await sb.from('user_progress').select('data').eq('user_id', email).maybeSingle();
+                
+                if (old && old.data) {
+                    status.innerText = "Миграция данных...";
+                    await migrate(email, old.data);
+                }
+                
+                location.reload();
+            } catch (e) {
+                alert("Ошибка: " + e.message);
+                status.innerText = "";
+            }
+        };
 
-            <!-- Контейнер для уроков/блоков -->
-            <div class="lessons-container" id="lessons-list"></div>
+        async function migrate(uid, d) {
+            if (d.stats) await sb.from('user_profiles').upsert({ user_id: uid, xp: d.stats.totalXp||0, coins: d.stats.coins||0 });
+            if (d.lessons) {
+                const ent = Object.entries(d.lessons).map(([id, v]) => ({ user_id: uid, lesson_id: id, status: v.status||'completed', progress: v.progress||100 }));
+                if (ent.length > 0) await sb.from('user_lessons').upsert(ent, { onConflict: 'user_id, lesson_id' });
+            }
+        }
 
-            <!-- Кнопка добавления -->
-            <div class="fab-container" onclick="openAddLessonModal()">
-                <div class="fab-btn"><ion-icon name="add"></ion-icon></div>
-            </div>
-        </main>
-    </div>
-
-    <div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
-        <div class="modal-content" id="modal-content" onclick="event.stopPropagation()"></div>
-    </div>
-
-    <script src="data_v5.js"></script>
-    <script src="app.js"></script>
+        window.onload = async () => {
+            const user = localStorage.getItem('d_edu_user');
+            if (user && window.supabase) {
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('app-screen').style.display = 'block';
+                document.getElementById('welcome-msg').innerText = "Привет, " + user;
+                
+                sb = window.supabase.createClient(URL, KEY);
+                const { data: lessons } = await sb.from('user_lessons').select('*').eq('user_id', user);
+                
+                const area = document.getElementById('content-area');
+                if (lessons && lessons.length > 0) {
+                    area.innerHTML = "<h2>Ваши уроки:</h2>";
+                    lessons.forEach(l => {
+                        const card = document.createElement('div');
+                        card.className = "lesson-card";
+                        card.innerHTML = `<strong>${l.lesson_id}</strong><br>Прогресс: ${l.progress}%`;
+                        area.appendChild(card);
+                    });
+                } else {
+                    area.innerHTML = "<p>Уроков пока нет. Перейдите в каталог.</p>";
+                }
+            }
+        };
+    </script>
 </body>
 </html>
