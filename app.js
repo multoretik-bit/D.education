@@ -1,164 +1,163 @@
-/* D-Education Platform Logic 3.1 (Global Scope Fix) */
+/* D-Education Platform Logic FINAL */
 
-// Глобальный перехват ошибок для диагностики
-window.onerror = function(msg, url, line, col, error) {
-    alert("Ошибка: " + msg + "\nГде: " + url + ":" + line);
-    return false;
-};
-
-// --- CONFIG ---
-const supabaseUrl = 'https://jjjkypymutcvrlngyhtt.supabase.co';
-const supabaseKey = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
+const supUrl = 'https://jjjkypymutcvrlngyhtt.supabase.co';
+const supKey = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
 let supabase;
 
-// Состояние
-window.currentUser = localStorage.getItem('d_edu_user');
-window.selectedDate = new Date();
 window.state = { profile: { xp: 0, coins: 0, streak: 0 }, lessons: {}, schedule: [] };
+window.selectedDate = new Date();
 
-// --- FUNCTIONS ---
-
-window.handleLogin = async function() {
-    console.log("handleLogin start");
-    const email = document.getElementById('username-input').value.trim();
-    if (!email || !email.includes('@')) return alert('Введите корректный Email');
-
+// --- Инициализация ---
+window.onload = async () => {
+    if (window.supabase) {
+        supabase = window.supabase.createClient(supUrl, supKey);
+    }
+    
     const loginBtn = document.getElementById('login-btn');
-    loginBtn.innerText = 'Синхронизация...';
-    loginBtn.disabled = true;
+    if (loginBtn) loginBtn.onclick = window.handleLogin;
 
-    try {
-        if (!window.supabase) {
-             window.supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        }
-        supabase = window.supabase;
-
-        window.currentUser = email;
-        localStorage.setItem('d_edu_user', window.currentUser);
-        
-        // Авто-миграция
-        const { data: oldData } = await supabase.from('user_progress').select('data').eq('user_id', window.currentUser).maybeSingle();
-        if (oldData && oldData.data) {
-            console.log("Legacy data found, migrating...");
-            await migrateLegacyData(oldData.data);
-        }
-
-        await window.initializeApp();
-    } catch (err) {
-        console.error(err);
-        alert("Ошибка входа: " + (err.message || "Нет связи с базой"));
-        loginBtn.innerText = 'Войти и синхронизировать';
-        loginBtn.disabled = false;
+    const user = localStorage.getItem('d_edu_user');
+    if (user) {
+        window.currentUser = user;
+        window.initializeApp();
+    } else {
+        document.getElementById('auth-screen').style.display = 'flex';
     }
 };
 
-async function migrateLegacyData(legacy) {
+window.handleLogin = async function() {
+    const email = document.getElementById('username-input').value.trim();
+    if (!email) return alert("Введите Email");
+
+    const btn = document.getElementById('login-btn');
+    btn.innerText = "Синхронизация...";
+    btn.disabled = true;
+
     try {
-        if (legacy.stats) {
-            await supabase.from('user_profiles').upsert({
-                user_id: window.currentUser,
-                xp: legacy.stats.totalXp || 0,
-                coins: legacy.stats.coins || 0,
-                streak: legacy.stats.streak || 0
-            });
+        if (!supabase) supabase = window.supabase.createClient(supUrl, supKey);
+        
+        window.currentUser = email;
+        localStorage.setItem('d_edu_user', email);
+
+        // МИГРАЦИЯ (если есть старые данные)
+        const { data: old } = await supabase.from('user_progress').select('data').eq('user_id', email).maybeSingle();
+        if (old && old.data) {
+            console.log("Migrating data...");
+            await migrate(email, old.data);
         }
-        if (legacy.lessons) {
-            const entries = Object.entries(legacy.lessons).map(([id, d]) => ({
-                user_id: window.currentUser, lesson_id: id, status: d.status || 'completed', progress: d.progress || 100
-            }));
-            if (entries.length > 0) await supabase.from('user_lessons').upsert(entries, { onConflict: 'user_id, lesson_id' });
+
+        window.initializeApp();
+    } catch (e) {
+        alert("Ошибка входа: " + e.message);
+        btn.innerText = "Войти в систему";
+        btn.disabled = false;
+    }
+};
+
+async function migrate(uid, d) {
+    try {
+        if (d.stats) await supabase.from('user_profiles').upsert({ user_id: uid, xp: d.stats.totalXp||0, coins: d.stats.coins||0, streak: d.stats.streak||0 });
+        if (d.lessons) {
+            const ent = Object.entries(d.lessons).map(([id, val]) => ({ user_id: uid, lesson_id: id, status: val.status||'completed', progress: val.progress||100 }));
+            if (ent.length > 0) await supabase.from('user_lessons').upsert(ent, { onConflict: 'user_id, lesson_id' });
         }
-        if (legacy.schedule) {
+        if (d.schedule) {
             const sch = [];
-            Object.entries(legacy.schedule).forEach(([date, tasks]) => {
-                if (Array.isArray(tasks)) {
-                    tasks.forEach(t => sch.push({
-                        user_id: window.currentUser, task_date: date, task_id: typeof t === 'string' ? t : t.id,
-                        task_type: t.type || 'lesson', start_time: t.startTime || '19:00', duration: t.duration || 60
-                    }));
-                }
+            Object.entries(d.schedule).forEach(([date, tasks]) => {
+                if (Array.isArray(tasks)) tasks.forEach(t => sch.push({
+                    user_id: uid, task_date: date, task_id: typeof t === 'string' ? t : t.id,
+                    task_type: t.type||'lesson', start_time: t.startTime||'19:00', duration: t.duration||60
+                }));
             });
             if (sch.length > 0) await supabase.from('user_schedule').insert(sch);
         }
-    } catch (e) { console.warn("Migration failed but skipping:", e); }
+    } catch (e) { console.warn("Migration warning:", e); }
 }
 
 window.initializeApp = async function() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'flex';
     
-    if (!window.supabase) {
-        window.supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-    }
-    supabase = window.supabase;
+    if (!supabase) supabase = window.supabase.createClient(supUrl, supKey);
 
-    await loadData();
-    window.renderDaySelector();
-    window.renderLessons();
+    await loadAllData();
+    window.renderUI();
 };
 
-async function loadData() {
-    try {
-        const [p, l, s] = await Promise.all([
-            supabase.from('user_profiles').select('*').eq('user_id', window.currentUser).maybeSingle(),
-            supabase.from('user_lessons').select('*').eq('user_id', window.currentUser),
-            supabase.from('user_schedule').select('*').eq('user_id', window.currentUser)
-        ]);
-        if (p.data) window.state.profile = p.data;
-        if (l.data) l.data.forEach(x => window.state.lessons[x.lesson_id] = x);
-        if (s.data) window.state.schedule = s.data;
-    } catch (e) { console.error(e); }
+async function loadAllData() {
+    const uid = window.currentUser;
+    const [p, l, s] = await Promise.all([
+        supabase.from('user_profiles').select('*').eq('user_id', uid).maybeSingle(),
+        supabase.from('user_lessons').select('*').eq('user_id', uid),
+        supabase.from('user_schedule').select('*').eq('user_id', uid)
+    ]);
+    if (p.data) window.state.profile = p.data;
+    if (l.data) l.data.forEach(x => window.state.lessons[x.lesson_id] = x);
+    if (s.data) window.state.schedule = s.data;
 }
 
+window.renderUI = function() {
+    window.renderDaySelector();
+    window.renderLessons();
+    
+    const prof = window.state.profile;
+    const level = Math.floor((prof.xp || 0) / 100) + 1;
+    document.getElementById('view-subtitle').innerText = `Уровень ${level} • ${prof.xp || 0} XP • ${prof.coins || 0} Монет`;
+};
+
 window.renderDaySelector = function() {
-    const container = document.getElementById('day-selector');
-    if (!container) return;
-    container.innerHTML = '';
+    const cont = document.getElementById('day-selector');
+    if (!cont) return;
+    cont.innerHTML = '';
     const today = new Date();
-    const dayNames = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
+    const names = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
     for (let i = 0; i < 7; i++) {
         const d = new Date();
-        d.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1) + i);
+        d.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1) + i);
         const active = d.toDateString() === window.selectedDate.toDateString();
         const card = document.createElement('div');
         card.className = `day-card ${active ? 'active' : ''}`;
-        card.innerHTML = `<span class="day-name">${dayNames[i]}</span><span class="day-date">${d.getDate()}</span>`;
-        card.onclick = () => { window.selectedDate = d; window.renderDaySelector(); window.renderLessons(); };
-        container.appendChild(card);
+        card.innerHTML = `<span class="day-name">${names[i]}</span><span class="day-date">${d.getDate()}</span>`;
+        card.onclick = () => { window.selectedDate = d; window.renderUI(); };
+        cont.appendChild(card);
     }
 };
 
 window.renderLessons = function() {
-    const container = document.getElementById('lessons-list');
-    if (!container) return;
-    container.innerHTML = '';
-    const dateStr = window.selectedDate.toISOString().split('T')[0];
-    const tasks = window.state.schedule.filter(s => s.task_date === dateStr);
+    const cont = document.getElementById('lessons-list');
+    if (!cont) return;
+    cont.innerHTML = '';
+    const dStr = window.selectedDate.toISOString().split('T')[0];
+    const tasks = window.state.schedule.filter(s => s.task_date === dStr);
     
     if (tasks.length === 0) {
-        container.innerHTML = '<p style="text-align:center; padding:2rem; opacity:0.5;">Свободный день</p>';
+        cont.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-dim);"><p>План на этот день пуст.</p></div>`;
         return;
     }
 
     tasks.forEach((t, i) => {
         const lesson = (typeof KNOWLEDGE_BASE !== 'undefined') ? KNOWLEDGE_BASE.lessons[t.task_id] : null;
-        const progress = window.state.lessons[t.task_id]?.progress || 0;
+        const prog = window.state.lessons[t.task_id]?.progress || 0;
         const card = document.createElement('div');
         card.className = `lesson-card ${i % 2 === 0 ? 'purple' : 'blue'}`;
         card.innerHTML = `
-            <div class="lesson-header"><strong>${lesson ? lesson.title : "Урок"}</strong> <span>${t.start_time}</span></div>
-            <div class="lesson-progress-container"><div class="lesson-progress-fill" style="width:${progress}%"></div></div>
-            <button class="btn-start" style="margin-top:1rem; width:100%;" onclick="alert('Начинаем!')">Начать</button>
+            <div class="lesson-header"><span class="lesson-title">${lesson ? lesson.title : "Урок"}</span><span>${t.start_time}</span></div>
+            <div class="lesson-progress-container"><div class="lesson-progress-fill" style="width:${prog}%"></div></div>
+            <div class="lesson-footer">
+                <button class="btn-start" onclick="alert('Начинаем урок!')">Начать обучение</button>
+            </div>
         `;
-        container.appendChild(card);
+        cont.appendChild(card);
     });
 };
 
 window.switchView = function(v) {
-    document.getElementById('view-title').innerText = v === 'home' ? 'Главная' : v;
+    document.getElementById('view-title').innerText = v === 'home' ? 'Главная' : v.toUpperCase();
+    if (v !== 'home') {
+        document.getElementById('day-selector').style.display = 'none';
+        document.getElementById('lessons-list').innerHTML = `<p style="padding:2rem; color:var(--text-dim);">Раздел ${v} скоро будет готов.</p>`;
+    } else {
+        document.getElementById('day-selector').style.display = 'flex';
+        window.renderUI();
+    }
 };
-
-// Самовызов инициализации
-if (window.currentUser) {
-    window.addEventListener('load', () => { window.initializeApp(); });
-}

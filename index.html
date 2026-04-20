@@ -3,111 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>dEducation | Debug Console</title>
+    <title>dEducation | Система Обучения</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        #debug-console {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 200px;
-            background: #000;
-            color: #0f0;
-            font-family: monospace;
-            font-size: 12px;
-            padding: 10px;
-            overflow-y: scroll;
-            border-top: 2px solid #333;
-            z-index: 9999;
-            opacity: 0.9;
-        }
-        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #222; padding-bottom: 2px; }
-        .log-error { color: #ff5555; font-weight: bold; }
-        .log-warn { color: #ffff55; }
-    </style>
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 </head>
-<body style="background: #0f0f1a; margin: 0; overflow: hidden;">
+<body>
 
-    <div id="debug-console">
-        <div class="log-entry">--- DEBUG CONSOLE INITIALIZED ---</div>
-    </div>
-
-    <div id="auth-screen" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: calc(100vh - 200px);">
-        <div class="auth-card" style="background: #1a1a2e; padding: 2rem; border-radius: 20px; text-align: center; color: white; width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-            <div class="logo" style="font-size: 2rem; font-weight: bold; margin-bottom: 1rem;">d<span style="color: #7b61ff;">Education</span></div>
-            <p>Введите Email для входа</p>
-            <input type="email" id="username-input" value="multoretik@gmail.com" style="width: 100%; padding: 12px; border-radius: 10px; border: none; background: #252545; color: white; margin-bottom: 1rem;">
-            <button id="login-btn" style="width: 100%; padding: 12px; border-radius: 10px; border: none; background: linear-gradient(90deg, #7b61ff, #ff61d8); color: white; font-weight: bold; cursor: pointer;">
-                ВОЙТИ В АККАУНТ
-            </button>
+    <!-- Экран Входа (скрыт если есть сессия) -->
+    <div id="auth-screen" class="auth-container" style="display: none;">
+        <div class="auth-card">
+            <div class="logo">d<span>Education</span></div>
+            <h2>С возвращением</h2>
+            <p>Введите Email для синхронизации прогресса</p>
+            <div class="form-group">
+                <input type="email" id="username-input" value="multoretik@gmail.com">
+            </div>
+            <button class="btn-primary" id="login-btn">Войти в систему</button>
         </div>
     </div>
 
-    <script>
-        // --- ПЕРЕХВАТ КОНСОЛИ ---
-        const consoleDiv = document.getElementById('debug-console');
-        function addLog(msg, type = 'info') {
-            const entry = document.createElement('div');
-            entry.className = 'log-entry' + (type !== 'info' ? ' log-' + type : '');
-            const time = new Date().toLocaleTimeString();
-            entry.innerText = `[${time}] ${msg}`;
-            consoleDiv.appendChild(entry);
-            consoleDiv.scrollTop = consoleDiv.scrollHeight;
-        }
+    <!-- Основной интерфейс -->
+    <div id="app-screen" class="app-container" style="display: none;">
+        <aside>
+            <div class="logo">d<span>Education</span></div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="#" class="nav-link active" onclick="switchView('home')"><ion-icon name="home-outline"></ion-icon> Главная</a></li>
+                <li class="nav-item"><a href="#" class="nav-link" onclick="switchView('schedule')"><ion-icon name="calendar-outline"></ion-icon> План</a></li>
+                <li class="nav-item"><a href="#" class="nav-link" onclick="switchView('catalog')"><ion-icon name="book-outline"></ion-icon> Каталог</a></li>
+                <li class="nav-item"><a href="#" class="nav-link" onclick="switchView('profile')"><ion-icon name="person-outline"></ion-icon> Профиль</a></li>
+            </ul>
+        </aside>
 
-        // Переопределяем стандартную консоль
-        const originalLog = console.log;
-        const originalError = console.error;
-        console.log = (...args) => { originalLog(...args); addLog(args.join(' ')); };
-        console.error = (...args) => { originalError(...args); addLog(args.join(' '), 'error'); };
-
-        // Глобальные ошибки
-        window.onerror = (m, u, l) => console.error(`CRASH: ${m} at ${l}`);
-        window.onunhandledrejection = (e) => console.error(`PROMISE ERROR: ${e.reason}`);
-
-        // --- ЛОГИКА ВХОДА ---
-        const supUrl = 'https://jjjkypymutcvrlngyhtt.supabase.co';
-        const supKey = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
-
-        document.getElementById('login-btn').addEventListener('click', async () => {
-            console.log("Кнопка нажата. Начало процесса...");
-            const email = document.getElementById('username-input').value.trim();
+        <main id="main-content">
+            <div class="header-section">
+                <h1 id="view-title">Главная</h1>
+                <p id="view-subtitle">Загрузка данных...</p>
+            </div>
+            <div class="day-selector" id="day-selector"></div>
+            <div class="lessons-container" id="lessons-list"></div>
             
-            try {
-                if (!window.supabase) {
-                    console.error("БИБЛИОТЕКА SUPABASE НЕ ЗАГРУЖЕНА!");
-                    return;
-                }
+            <!-- FAB для добавления -->
+            <div class="fab-container" onclick="openAddLessonModal()">
+                <div class="fab-btn"><ion-icon name="add"></ion-icon></div>
+            </div>
+        </main>
+    </div>
 
-                console.log("Инициализация Supabase...");
-                const supabase = window.supabase.createClient(supUrl, supKey);
-                
-                console.log(`Запрос данных для: ${email}`);
-                const { data, error } = await supabase.from('user_progress').select('data').eq('user_id', email).maybeSingle();
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal-content" id="modal-content"></div>
+    </div>
 
-                if (error) {
-                    console.error(`ОШИБКА БАЗЫ: ${error.message} (Код: ${error.code})`);
-                    return;
-                }
-
-                if (data) {
-                    console.log("ДАННЫЕ НАЙДЕНЫ! Вход выполнен.");
-                    alert("Успех! Данные найдены. Сейчас страница обновится.");
-                    localStorage.setItem('d_edu_user', email);
-                    location.reload();
-                } else {
-                    console.log("Аккаунт не найден в старой базе. Проверьте Email.");
-                    alert("Аккаунт не найден. Проверьте правильность Email.");
-                }
-
-            } catch (err) {
-                console.error(`ОШИБКА СКРИПТА: ${err.message}`);
-            }
-        });
-
-        console.log("Система готова. Ожидание нажатия кнопки...");
-    </script>
+    <script src="data_v5.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
