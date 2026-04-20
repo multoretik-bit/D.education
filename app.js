@@ -1,4 +1,4 @@
-/* D-Education Platform Logic FINAL RECOVERY */
+/* D-Education Platform Logic FINAL RECOVERY - STABILIZED */
 
 const URL = 'https://jjjkypymutcvrlngyhtt.supabase.co';
 const KEY = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
@@ -8,16 +8,24 @@ window.state = { profile: { xp: 0, coins: 0, streak: 0 }, lessons: {}, schedule:
 window.selectedDate = new Date();
 window.currentView = 'home';
 
-// --- ИНИЦИАЛИЗАЦИЯ ---
+// --- INITIALIZATION ---
 window.onload = async () => {
-    if (window.supabase) sb = window.supabase.createClient(URL, KEY);
+    console.log("D-Education: App loading...");
+    try {
+        if (window.supabase) {
+            sb = window.supabase.createClient(URL, KEY);
+        }
+    } catch (e) {
+        console.error("Supabase Init Error:", e);
+    }
     
     const user = localStorage.getItem('d_edu_user');
     if (user) {
         window.currentUser = user;
         await window.initializeApp();
     } else {
-        document.getElementById('auth-screen').style.display = 'flex';
+        const authScreen = document.getElementById('auth-screen');
+        if (authScreen) authScreen.style.display = 'flex';
     }
 };
 
@@ -31,36 +39,35 @@ window.handleLogin = async function() {
 };
 
 window.initializeApp = async function() {
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('app-screen').style.display = 'flex';
+    console.log("Initializing app for:", window.currentUser);
+    const authScreen = document.getElementById('auth-screen');
+    const appScreen = document.getElementById('app-screen');
     
-    if (!sb) sb = window.supabase.createClient(URL, KEY);
-
-    // ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА СТАРЫХ ДАННЫХ ПРИ КАЖДОМ ВХОДЕ
-    await checkAndMigrate();
+    if (authScreen) authScreen.style.display = 'none';
+    if (appScreen) appScreen.style.display = 'flex';
     
-    await loadData();
+    try {
+        if (!sb && window.supabase) sb = window.supabase.createClient(URL, KEY);
+        await checkAndMigrate();
+        await loadData();
+    } catch (e) {
+        console.error("Load Data Error:", e);
+    }
     window.render();
 };
 
 async function checkAndMigrate() {
-    console.log("Checking for legacy data...");
+    if (!sb) return;
+    console.log("Checking legacy data...");
     try {
         const { data: old } = await sb.from('user_progress').select('data').eq('user_id', window.currentUser).maybeSingle();
         if (old && old.data) {
-            console.log("Legacy data found! Migrating everything...");
             const d = old.data;
-            
-            // 1. Профиль
             if (d.stats) await sb.from('user_profiles').upsert({ user_id: window.currentUser, xp: d.stats.totalXp||0, coins: d.stats.coins||0, streak: d.stats.streak||0 });
-            
-            // 2. Уроки
             if (d.lessons) {
                 const ent = Object.entries(d.lessons).map(([id, v]) => ({ user_id: window.currentUser, lesson_id: id, status: v.status||'completed', progress: v.progress||100 }));
                 if (ent.length > 0) await sb.from('user_lessons').upsert(ent, { onConflict: 'user_id, lesson_id' });
             }
-            
-            // 3. Расписание
             if (d.schedule) {
                 const sch = [];
                 Object.entries(d.schedule).forEach(([date, tasks]) => {
@@ -70,7 +77,6 @@ async function checkAndMigrate() {
                     }));
                 });
                 if (sch.length > 0) {
-                    // Очищаем старое расписание перед вставкой чтобы не дублировать
                     await sb.from('user_schedule').delete().eq('user_id', window.currentUser);
                     await sb.from('user_schedule').insert(sch);
                 }
@@ -80,41 +86,51 @@ async function checkAndMigrate() {
 }
 
 async function loadData() {
+    if (!sb) return;
     const uid = window.currentUser;
-    const [p, l, s] = await Promise.all([
-        sb.from('user_profiles').select('*').eq('user_id', uid).maybeSingle(),
-        sb.from('user_lessons').select('*').eq('user_id', uid),
-        sb.from('user_schedule').select('*').eq('user_id', uid)
-    ]);
-    if (p.data) window.state.profile = p.data;
-    if (l.data) {
-        window.state.lessons = {};
-        l.data.forEach(x => window.state.lessons[x.lesson_id] = x);
-    }
-    if (s.data) window.state.schedule = s.data;
+    try {
+        const [p, l, s] = await Promise.all([
+            sb.from('user_profiles').select('*').eq('user_id', uid).maybeSingle(),
+            sb.from('user_lessons').select('*').eq('user_id', uid),
+            sb.from('user_schedule').select('*').eq('user_id', uid)
+        ]);
+        if (p.data) window.state.profile = p.data;
+        if (l.data) {
+            window.state.lessons = {};
+            l.data.forEach(x => window.state.lessons[x.lesson_id] = x);
+        }
+        if (s.data) window.state.schedule = s.data;
+    } catch (e) { console.error("Database load error:", e); }
 }
 
 // --- RENDERING ---
 window.render = function() {
-    const prof = window.state.profile;
+    const prof = window.state.profile || { xp: 0, coins: 0 };
     const level = Math.floor((prof.xp || 0) / 100) + 1;
-    document.getElementById('view-subtitle').innerText = `Уровень ${level} • ${prof.xp || 0} XP • ${prof.coins || 0} Монет`;
+    const sub = document.getElementById('view-subtitle');
+    if (sub) sub.innerText = `Уровень ${level} • ${prof.xp || 0} XP • ${prof.coins || 0} Монет`;
 
     if (window.currentView === 'home') renderHome();
     else if (window.currentView === 'catalog') renderCatalog();
 };
 
 function renderHome() {
-    document.getElementById('view-title').innerText = "Главная";
-    document.getElementById('day-selector').style.display = 'flex';
+    const title = document.getElementById('view-title');
+    const daySel = document.getElementById('day-selector');
+    if (title) title.innerText = "Главная";
+    if (daySel) daySel.style.display = 'flex';
     renderDaySelector();
     renderLessonsList();
 }
 
 function renderCatalog() {
-    document.getElementById('view-title').innerText = "Мои Блоки";
-    document.getElementById('day-selector').style.display = 'none';
+    const title = document.getElementById('view-title');
+    const daySel = document.getElementById('day-selector');
+    if (title) title.innerText = "Мои Блоки";
+    if (daySel) daySel.style.display = 'none';
+    
     const cont = document.getElementById('lessons-list');
+    if (!cont) return;
     cont.innerHTML = '';
 
     if (typeof KNOWLEDGE_BASE !== 'undefined') {
@@ -130,6 +146,7 @@ function renderCatalog() {
 
 function renderArea(area) {
     const cont = document.getElementById('lessons-list');
+    if (!cont) return;
     cont.innerHTML = `<button class="btn-primary" style="margin-bottom:1rem;" onclick="renderCatalog()">Назад к блокам</button>`;
     
     area.subsystems.forEach(sub => {
@@ -159,6 +176,7 @@ function renderArea(area) {
 
 window.renderDaySelector = function() {
     const cont = document.getElementById('day-selector');
+    if (!cont) return;
     cont.innerHTML = '';
     const today = new Date();
     const names = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
@@ -177,6 +195,7 @@ window.renderDaySelector = function() {
 
 function renderLessonsList() {
     const cont = document.getElementById('lessons-list');
+    if (!cont) return;
     cont.innerHTML = '';
     const dStr = window.selectedDate.toISOString().split('T')[0];
     const tasks = window.state.schedule.filter(s => s.task_date === dStr);
@@ -203,7 +222,8 @@ function renderLessonsList() {
 window.switchView = function(view) {
     window.currentView = view;
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    document.getElementById('nav-' + view).classList.add('active');
+    const activeEl = document.getElementById('nav-' + view);
+    if (activeEl) activeEl.classList.add('active');
     window.render();
 };
 
