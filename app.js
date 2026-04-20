@@ -1,4 +1,4 @@
-/* D-Education Platform Logic FULL RESTORE */
+/* D-Education Platform Logic FINAL RECOVERY */
 
 const URL = 'https://jjjkypymutcvrlngyhtt.supabase.co';
 const KEY = 'sb_publishable_L1a5vhq7PjjSh7QTIrPGRg_RO-bH6FN';
@@ -8,14 +8,14 @@ window.state = { profile: { xp: 0, coins: 0, streak: 0 }, lessons: {}, schedule:
 window.selectedDate = new Date();
 window.currentView = 'home';
 
-// --- Инициализация ---
+// --- ИНИЦИАЛИЗАЦИЯ ---
 window.onload = async () => {
     if (window.supabase) sb = window.supabase.createClient(URL, KEY);
     
     const user = localStorage.getItem('d_edu_user');
     if (user) {
         window.currentUser = user;
-        window.initializeApp();
+        await window.initializeApp();
     } else {
         document.getElementById('auth-screen').style.display = 'flex';
     }
@@ -25,44 +25,10 @@ window.handleLogin = async function() {
     const email = document.getElementById('username-input').value.trim();
     if (!email) return alert("Введите Email");
     
-    const btn = document.getElementById('login-btn');
-    btn.innerText = "Вход...";
-    btn.disabled = true;
-
-    try {
-        if (!sb) sb = window.supabase.createClient(URL, KEY);
-        window.currentUser = email;
-        localStorage.setItem('d_edu_user', email);
-
-        // Проверка и миграция
-        const { data: old } = await sb.from('user_progress').select('data').eq('user_id', email).maybeSingle();
-        if (old && old.data) await migrate(email, old.data);
-
-        window.initializeApp();
-    } catch (e) {
-        alert("Ошибка входа: " + e.message);
-        btn.innerText = "Войти в аккаунт";
-        btn.disabled = false;
-    }
+    localStorage.setItem('d_edu_user', email);
+    window.currentUser = email;
+    await window.initializeApp();
 };
-
-async function migrate(uid, d) {
-    if (d.stats) await sb.from('user_profiles').upsert({ user_id: uid, xp: d.stats.totalXp||0, coins: d.stats.coins||0, streak: d.stats.streak||0 });
-    if (d.lessons) {
-        const ent = Object.entries(d.lessons).map(([id, v]) => ({ user_id: uid, lesson_id: id, status: v.status||'completed', progress: v.progress||100 }));
-        if (ent.length > 0) await sb.from('user_lessons').upsert(ent, { onConflict: 'user_id, lesson_id' });
-    }
-    if (d.schedule) {
-        const sch = [];
-        Object.entries(d.schedule).forEach(([date, tasks]) => {
-            if (Array.isArray(tasks)) tasks.forEach(t => sch.push({
-                user_id: uid, task_date: date, task_id: typeof t === 'string' ? t : t.id,
-                task_type: t.type||'lesson', start_time: t.startTime||'19:00', duration: t.duration||60
-            }));
-        });
-        if (sch.length > 0) await sb.from('user_schedule').insert(sch);
-    }
-}
 
 window.initializeApp = async function() {
     document.getElementById('auth-screen').style.display = 'none';
@@ -70,36 +36,125 @@ window.initializeApp = async function() {
     
     if (!sb) sb = window.supabase.createClient(URL, KEY);
 
+    // ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА СТАРЫХ ДАННЫХ ПРИ КАЖДОМ ВХОДЕ
+    await checkAndMigrate();
+    
     await loadData();
     window.render();
 };
 
+async function checkAndMigrate() {
+    console.log("Checking for legacy data...");
+    try {
+        const { data: old } = await sb.from('user_progress').select('data').eq('user_id', window.currentUser).maybeSingle();
+        if (old && old.data) {
+            console.log("Legacy data found! Migrating everything...");
+            const d = old.data;
+            
+            // 1. Профиль
+            if (d.stats) await sb.from('user_profiles').upsert({ user_id: window.currentUser, xp: d.stats.totalXp||0, coins: d.stats.coins||0, streak: d.stats.streak||0 });
+            
+            // 2. Уроки
+            if (d.lessons) {
+                const ent = Object.entries(d.lessons).map(([id, v]) => ({ user_id: window.currentUser, lesson_id: id, status: v.status||'completed', progress: v.progress||100 }));
+                if (ent.length > 0) await sb.from('user_lessons').upsert(ent, { onConflict: 'user_id, lesson_id' });
+            }
+            
+            // 3. Расписание
+            if (d.schedule) {
+                const sch = [];
+                Object.entries(d.schedule).forEach(([date, tasks]) => {
+                    if (Array.isArray(tasks)) tasks.forEach(t => sch.push({
+                        user_id: window.currentUser, task_date: date, task_id: typeof t === 'string' ? t : t.id,
+                        task_type: t.type||'lesson', start_time: t.startTime||'19:00', duration: t.duration||60
+                    }));
+                });
+                if (sch.length > 0) {
+                    // Очищаем старое расписание перед вставкой чтобы не дублировать
+                    await sb.from('user_schedule').delete().eq('user_id', window.currentUser);
+                    await sb.from('user_schedule').insert(sch);
+                }
+            }
+        }
+    } catch (e) { console.error("Migration error:", e); }
+}
+
 async function loadData() {
+    const uid = window.currentUser;
     const [p, l, s] = await Promise.all([
-        sb.from('user_profiles').select('*').eq('user_id', window.currentUser).maybeSingle(),
-        sb.from('user_lessons').select('*').eq('user_id', window.currentUser),
-        sb.from('user_schedule').select('*').eq('user_id', window.currentUser)
+        sb.from('user_profiles').select('*').eq('user_id', uid).maybeSingle(),
+        sb.from('user_lessons').select('*').eq('user_id', uid),
+        sb.from('user_schedule').select('*').eq('user_id', uid)
     ]);
     if (p.data) window.state.profile = p.data;
-    if (l.data) l.data.forEach(x => window.state.lessons[x.lesson_id] = x);
+    if (l.data) {
+        window.state.lessons = {};
+        l.data.forEach(x => window.state.lessons[x.lesson_id] = x);
+    }
     if (s.data) window.state.schedule = s.data;
 }
 
+// --- RENDERING ---
 window.render = function() {
-    if (window.currentView === 'home') {
-        renderHome();
-    } else if (window.currentView === 'catalog') {
-        renderCatalog();
-    }
+    const prof = window.state.profile;
+    const level = Math.floor((prof.xp || 0) / 100) + 1;
+    document.getElementById('view-subtitle').innerText = `Уровень ${level} • ${prof.xp || 0} XP • ${prof.coins || 0} Монет`;
+
+    if (window.currentView === 'home') renderHome();
+    else if (window.currentView === 'catalog') renderCatalog();
 };
 
 function renderHome() {
     document.getElementById('view-title').innerText = "Главная";
-    document.getElementById('view-subtitle').innerText = "Ваши сегодняшние задачи";
     document.getElementById('day-selector').style.display = 'flex';
-    
     renderDaySelector();
-    renderLessonsForDay();
+    renderLessonsList();
+}
+
+function renderCatalog() {
+    document.getElementById('view-title').innerText = "Мои Блоки";
+    document.getElementById('day-selector').style.display = 'none';
+    const cont = document.getElementById('lessons-list');
+    cont.innerHTML = '';
+
+    if (typeof KNOWLEDGE_BASE !== 'undefined') {
+        KNOWLEDGE_BASE.areas.forEach(area => {
+            const card = document.createElement('div');
+            card.className = "lesson-card blue";
+            card.innerHTML = `<div class="lesson-header"><strong>${area.title}</strong></div><p>Нажмите для просмотра</p>`;
+            card.onclick = () => renderArea(area);
+            cont.appendChild(card);
+        });
+    }
+}
+
+function renderArea(area) {
+    const cont = document.getElementById('lessons-list');
+    cont.innerHTML = `<button class="btn-primary" style="margin-bottom:1rem;" onclick="renderCatalog()">Назад к блокам</button>`;
+    
+    area.subsystems.forEach(sub => {
+        const div = document.createElement('div');
+        div.style.marginBottom = "1rem";
+        div.innerHTML = `<h3 style="opacity:0.8;">${sub.title}</h3>`;
+        sub.skills.forEach(skill => {
+            const sDiv = document.createElement('div');
+            sDiv.style.paddingLeft = "1rem";
+            sDiv.innerHTML = `<p style="font-weight:bold;">${skill.title}</p>`;
+            skill.lessons.forEach(lId => {
+                const lesson = KNOWLEDGE_BASE.lessons[lId];
+                if (lesson) {
+                    const lCard = document.createElement('div');
+                    lCard.className = "lesson-card purple";
+                    const prog = window.state.lessons[lId]?.progress || 0;
+                    lCard.innerHTML = `<div style="display:flex;justify-content:space-between;"><span>${lesson.title}</span><span>${prog}%</span></div>`;
+                    lCard.onclick = () => alert("Урок: " + lesson.title);
+                    sDiv.appendChild(lCard);
+                }
+            });
+            div.appendChild(sDiv);
+        });
+        cont.appendChild(div);
+    });
 }
 
 window.renderDaySelector = function() {
@@ -109,7 +164,8 @@ window.renderDaySelector = function() {
     const names = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
     for (let i = 0; i < 7; i++) {
         const d = new Date();
-        d.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1) + i);
+        const start = today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1);
+        d.setDate(start + i);
         const active = d.toDateString() === window.selectedDate.toDateString();
         const card = document.createElement('div');
         card.className = `day-card ${active ? 'active' : ''}`;
@@ -119,7 +175,7 @@ window.renderDaySelector = function() {
     }
 };
 
-function renderLessonsForDay() {
+function renderLessonsList() {
     const cont = document.getElementById('lessons-list');
     cont.innerHTML = '';
     const dStr = window.selectedDate.toISOString().split('T')[0];
@@ -138,71 +194,9 @@ function renderLessonsForDay() {
         card.innerHTML = `
             <div class="lesson-header"><strong>${lesson ? lesson.title : "Урок"}</strong> <span>${t.start_time}</span></div>
             <div class="lesson-progress-container"><div class="lesson-progress-fill" style="width:${prog}%"></div></div>
-            <button class="btn-start" style="margin-top:1rem; width:100%;" onclick="startLesson('${t.task_id}')">Начать обучение</button>
+            <button class="btn-start" style="margin-top:1rem; width:100%;" onclick="alert('Урок запускается...')">Начать обучение</button>
         `;
         cont.appendChild(card);
-    });
-}
-
-function renderCatalog() {
-    document.getElementById('view-title').innerText = "Мои Блоки";
-    document.getElementById('view-subtitle').innerText = "Все доступные курсы и материалы";
-    document.getElementById('day-selector').style.display = 'none';
-    
-    const cont = document.getElementById('lessons-list');
-    cont.innerHTML = '';
-
-    if (typeof KNOWLEDGE_BASE !== 'undefined') {
-        KNOWLEDGE_BASE.areas.forEach(area => {
-            const card = document.createElement('div');
-            card.className = "lesson-card blue";
-            card.style.cursor = "pointer";
-            card.onclick = () => renderArea(area);
-            card.innerHTML = `
-                <div class="lesson-header"><strong style="font-size:1.2rem;">${area.title}</strong> <ion-icon name="folder-open-outline"></ion-icon></div>
-                <p style="opacity:0.7; font-size:0.9rem;">Нажмите, чтобы открыть блок</p>
-            `;
-            cont.appendChild(card);
-        });
-    }
-}
-
-function renderArea(area) {
-    document.getElementById('view-title').innerText = area.title;
-    const cont = document.getElementById('lessons-list');
-    cont.innerHTML = '<button class="btn-primary" style="margin-bottom:1rem;" onclick="renderCatalog()">Назад</button>';
-    
-    area.subsystems.forEach(sub => {
-        const div = document.createElement('div');
-        div.style.marginBottom = "1.5rem";
-        div.innerHTML = `<h3 style="margin-bottom:0.5rem; opacity:0.8;">${sub.title}</h3>`;
-        
-        sub.skills.forEach(skill => {
-            const skillDiv = document.createElement('div');
-            skillDiv.style.paddingLeft = "1rem";
-            skillDiv.innerHTML = `<p style="font-weight:bold; margin-bottom:0.3rem;">${skill.title}</p>`;
-            
-            skill.lessons.forEach(lId => {
-                const lesson = KNOWLEDGE_BASE.lessons[lId];
-                if (lesson) {
-                    const lCard = document.createElement('div');
-                    lCard.className = "lesson-card purple";
-                    lCard.style.padding = "10px 15px";
-                    lCard.style.marginBottom = "5px";
-                    const prog = window.state.lessons[lId]?.progress || 0;
-                    lCard.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span>${lesson.title}</span>
-                            <span style="font-size:0.8rem; opacity:0.6;">${prog}%</span>
-                        </div>
-                    `;
-                    lCard.onclick = () => startLesson(lId);
-                    skillDiv.appendChild(lCard);
-                }
-            });
-            div.appendChild(skillDiv);
-        });
-        cont.appendChild(div);
     });
 }
 
@@ -213,14 +207,4 @@ window.switchView = function(view) {
     window.render();
 };
 
-function startLesson(id) {
-    alert("Запуск урока: " + id + "\nЗдесь откроются ваши учебные карточки.");
-}
-
-function logout() {
-    localStorage.clear();
-    location.reload();
-}
-
-function closeModal() { document.getElementById('modal-overlay').classList.remove('active'); }
-function openAddLessonModal() { alert("Добавление урока скоро будет доступно в новом дизайне."); }
+function logout() { localStorage.clear(); location.reload(); }
